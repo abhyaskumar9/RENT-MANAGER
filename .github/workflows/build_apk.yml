@@ -52,19 +52,11 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Build Universal Android APK
-        run: flutter build apk --release --no-tree-shake-icons
+      - name: Build Universal Release APK
+        run: flutter build apk --release
 
-      - name: Sign APK with Android SDK Apksigner
-        run: |
-          keytool -genkeypair -v -keystore release.jks -alias rentkey -keyalg RSA -keysize 2048 -validity 10000 -storepass 123456 -keypass 123456 -dname "CN=RentManager, O=App, C=IN"
-          
-          BUILD_TOOLS_DIR=$(ls -d /usr/local/lib/android/sdk/build-tools/* | tail -n 1)
-          $BUILD_TOOLS_DIR/zipalign -v -p 4 build/app/outputs/flutter-apk/app-release.apk RentManager-Aligned.apk
-          $BUILD_TOOLS_DIR/apksigner sign --ks release.jks --ks-pass pass:123456 --ks-key-alias rentkey --key-pass pass:123456 --out RentManager-Direct-Install.apk RentManager-Aligned.apk
-
-      - name: Upload Ready-to-Install APK
+      - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: RentManager-Direct-Install-APK
-          path: RentManager-Direct-Install.apk
+          name: RentManager-Universal-Release-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
