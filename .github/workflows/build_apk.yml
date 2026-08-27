@@ -1,4 +1,4 @@
-name: Build Android Signed Release APK
+name: Build Direct Installable Android APK
 
 on:
   push:
@@ -9,23 +9,24 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - uses: subosito/flutter-action@v2
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.x'
           channel: 'stable'
 
-      # 1. Generate Clean Android Platform
-      - name: Generate Android Skeleton
+      - name: Create Android Platform
         run: flutter create . --project-name rent_manager --platforms=android --org com.app.rentmanager
 
-      # 2. Add WhatsApp queries to AndroidManifest
       - name: Add WhatsApp Queries to AndroidManifest
         run: |
           python3 -c "
@@ -52,33 +53,14 @@ jobs:
                   f.write(content)
           "
 
-      # 3. Configure Official Signing in build.gradle (Fix for Direct Install)
-      - name: Configure Gradle Signing
-        run: |
-          python3 -c "
-          gradle_path = 'android/app/build.gradle'
-          with open(gradle_path, 'r') as f:
-              content = f.read()
-          
-          # Ensure release buildType uses valid signingConfig
-          if 'signingConfig = signingConfigs.debug' not in content:
-              content = content.replace('buildTypes {', 'buildTypes {\n        release {\n            signingConfig = signingConfigs.debug\n        }')
-          
-          with open(gradle_path, 'w') as f:
-              f.write(content)
-          "
-
-      # 4. Fetch Dependencies
-      - name: Get Dependencies
+      - name: Get Flutter Packages
         run: flutter pub get
 
-      # 5. Build Signed Universal APK
-      - name: Build Signed Universal Release APK
-        run: flutter build apk --release --no-tree-shake-icons
+      - name: Build Direct Signed APK
+        run: flutter build apk --debug
 
-      # 6. Upload Final Installable APK
-      - name: Upload Final APK
+      - name: Upload Direct Installable APK
         uses: actions/upload-artifact@v4
         with:
-          name: RentManager-Final-Install
-          path: build/app/outputs/flutter-apk/app-release.apk
+          name: RentManager-Direct-Install
+          path: build/app/outputs/flutter-apk/app-debug.apk
