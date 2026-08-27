@@ -48,13 +48,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   String listFilter = 'all';
 
   // Form Controllers
-  String personType = 'Student';
+  String personType = 'Student'; // 'Student', 'Renter', 'Hostel'
   final nameCtrl = TextEditingController();
   final mobileCtrl = TextEditingController();
   final parentMobileCtrl = TextEditingController();
   final fatherCtrl = TextEditingController();
   final addressCtrl = TextEditingController();
-  final roomNoCtrl = TextEditingController();
+  final roomOrRollCtrl = TextEditingController(); // Roll No for Student, Room/Bed for Hostel & Renter
   final idNumCtrl = TextEditingController();
   final rentCtrl = TextEditingController();
   final advanceCtrl = TextEditingController(text: '0'); // Security Deposit
@@ -74,7 +74,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   final ownerUpiIdCtrl = TextEditingController();
   final ownerUpiNumCtrl = TextEditingController();
   final defaultUnitRateCtrl = TextEditingController(text: '8');
-  final propertyNameCtrl = TextEditingController(text: 'My Property & Hostel');
+  final propertyNameCtrl = TextEditingController(text: 'My Hostel / Institute');
   final studentWelcomeRulesCtrl = TextEditingController();
   final renterWelcomeRulesCtrl = TextEditingController();
   String? ownerPhotoBase64;
@@ -113,10 +113,10 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       ownerUpiIdCtrl.text = ownerProfile['upiId'] ?? '';
       ownerUpiNumCtrl.text = ownerProfile['upiNum'] ?? '';
       defaultUnitRateCtrl.text = ownerProfile['unitRate'] ?? '8';
-      propertyNameCtrl.text = ownerProfile['propertyName'] ?? 'My Hostel & Residency';
+      propertyNameCtrl.text = ownerProfile['propertyName'] ?? 'My Hostel / Institute';
       ownerPhotoBase64 = ownerProfile['photo'];
       studentWelcomeRulesCtrl.text = ownerProfile['studentRules'] ??
-          "🎓 *STUDENT RULES*\n1. Monthly fee due every 30 days.\n2. Keep premises clean.";
+          "🎓 *STUDENT & HOSTEL RULES*\n1. Monthly fee/rent due every 30 days.\n2. Keep premises clean.\n3. Follow silent hours.";
       renterWelcomeRulesCtrl.text = ownerProfile['renterRules'] ??
           "🏠 *RENTER RULES*\n1. Room rent due monthly.\n2. Electricity meter reading cycle starts from 1st.";
     }
@@ -153,7 +153,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     };
     await prefs.setString('owner_profile', json.encode(ownerProfile));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile & Property Settings Saved!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile & Settings Saved!")));
     }
   }
 
@@ -207,7 +207,9 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     }
 
     if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("WhatsApp open nahi ho saka. Check karein.")));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("WhatsApp open nahi ho saka. Kripya check karein.")),
+      );
     }
   }
 
@@ -220,7 +222,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       String t = (h['type'] ?? '').toString().toLowerCase();
       bool match = true;
       if (category == 'electricity') match = t.contains('electricity');
-      if (category == 'rent') match = t.contains('room rent') || t.contains('student fee');
+      if (category == 'rent') match = t.contains('room rent') || t.contains('fee') || t.contains('hostel');
 
       if (match) {
         double total = (h['totalPayable'] as num?)?.toDouble() ?? 0.0;
@@ -252,16 +254,19 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             itemBuilder: (c, idx) {
               final item = unpaidList[idx];
               double due = _getAccurateUnpaidDue(item);
+              bool isStudent = (item['pType'] == 'Student');
+              String roomLabel = isStudent ? "Roll No: ${item['roomNo'] ?? 'N/A'}" : "Room: ${item['roomNo'] ?? 'N/A'}";
+
               return ListTile(
                 dense: true,
                 title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("Room: ${item['roomNo'] ?? 'N/A'} | Total Due: ₹$due"),
+                subtitle: Text("$roomLabel | Total Due: ₹$due"),
                 trailing: IconButton(
                   icon: const Icon(Icons.send, color: Color(0xFF25D366)),
                   onPressed: () {
                     String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
                     String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
-                    String msg = "*📢 PAYMENT DUE REMINDER*\n--------------------\nName: ${item['name']}\nRoom/Bed: ${item['roomNo'] ?? 'N/A'}\n*Pending Due: ₹$due*\n--------------------\nKripya baki amount jald jama karein.\nUPI ID: $upi\nOwner: $oName\nDhanyawad!";
+                    String msg = "*📢 PAYMENT DUE REMINDER*\n--------------------\nName: ${item['name']}\n$roomLabel\n*Pending Due: ₹$due*\n--------------------\nKripya baki amount jald jama karein.\nUPI ID: $upi\nOwner: $oName\nDhanyawad!";
                     _sendWhatsApp(item['mobile'], msg);
                   },
                 ),
@@ -276,15 +281,15 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // POLICE VERIFICATION / DIGITAL PROFILE NOTICE SHARE
   void _sharePoliceVerificationForm(Map<String, dynamic> item) {
-    String pName = propertyNameCtrl.text.isNotEmpty ? propertyNameCtrl.text : "Residency";
+    String pName = propertyNameCtrl.text.isNotEmpty ? propertyNameCtrl.text : "Institute / Hostel";
     String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Property Manager";
     String oPhone = ownerPhoneCtrl.text.isNotEmpty ? ownerPhoneCtrl.text : "";
+    bool isStudent = (item['pType'] == 'Student');
 
-    String verificationDoc = "==============================\n📋 TENANT / STUDENT VERIFICATION RECORD\n==============================\nProperty: $pName\n\n1. Full Name: ${item['name']}\n2. Category: ${item['pType']}\n3. Room / Bed No: ${item['roomNo'] ?? 'N/A'}\n4. Mobile No: ${item['mobile']}\n5. Parents Mobile: ${item['parentMobile'] ?? 'N/A'}\n6. Father/Guardian Name: ${item['father'] ?? 'N/A'}\n7. Permanent Address: ${item['address'] ?? 'N/A'}\n8. ID / Aadhaar / Doc No: ${item['idNum'] ?? 'N/A'}\n9. Joining Date: ${item['entryDate']}\n10. Monthly Rent/Fee: ₹${item['rent']}\n11. Security Deposit: ₹${item['securityDeposit'] ?? 0}\n\nOwner / Manager: $oName\nContact: $oPhone\n==============================";
+    String verificationDoc = "==============================\n📋 MEMBER RECORD & VERIFICATION\n==============================\nProperty/Institute: $pName\n\n1. Full Name: ${item['name']}\n2. Category: ${item['pType']}\n3. ${isStudent ? 'Roll Number' : 'Room / Bed No'}: ${item['roomNo'] ?? 'N/A'}\n4. Mobile No: ${item['mobile']}\n5. Parents Mobile: ${item['parentMobile'] ?? 'N/A'}\n6. Father/Guardian Name: ${item['father'] ?? 'N/A'}\n7. Permanent Address: ${item['address'] ?? 'N/A'}\n8. ID / Aadhaar / Doc No: ${item['idNum'] ?? 'N/A'}\n9. Joining Date: ${item['entryDate']}\n10. Monthly Fee/Rent: ₹${item['rent']}\n11. Security Deposit: ₹${item['securityDeposit'] ?? 0}\n\nOwner / Manager: $oName\nContact: $oPhone\n==============================";
 
-    Share.share(verificationDoc, subject: "Tenant Verification Details - ${item['name']}");
+    Share.share(verificationDoc, subject: "Member Verification - ${item['name']}");
   }
 
   void _saveNewRegistration() async {
@@ -293,6 +298,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       return;
     }
 
+    bool isRenterOrHostel = (personType == 'Renter' || personType == 'Hostel');
     DateTime dueDate = rentEntryDate.add(const Duration(days: 30));
     String rentDateStr = "${rentEntryDate.year}-${rentEntryDate.month.toString().padLeft(2, '0')}-${rentEntryDate.day.toString().padLeft(2, '0')}";
     String elecDateStr = "${elecStartDate.year}-${elecStartDate.month.toString().padLeft(2, '0')}-${elecStartDate.day.toString().padLeft(2, '0')}";
@@ -300,23 +306,23 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
 
     Map<String, dynamic> newEntry = {
       'id': DateTime.now().millisecondsSinceEpoch,
-      'pType': personType,
+      'pType': personType, // 'Student', 'Renter', or 'Hostel'
       'name': nameCtrl.text.trim(),
       'mobile': mobileCtrl.text.trim(),
       'parentMobile': parentMobileCtrl.text.trim(),
       'father': fatherCtrl.text.trim(),
       'address': addressCtrl.text.trim(),
-      'roomNo': roomNoCtrl.text.trim(),
+      'roomNo': roomOrRollCtrl.text.trim(),
       'idNum': idNumCtrl.text.trim(),
       'idCardImg': idCardImgBase64 ?? '',
       'studentImg': studentImgBase64 ?? '',
       'entryDate': rentDateStr,
-      'elecDate': personType == 'Renter' ? elecDateStr : null,
+      'elecDate': isRenterOrHostel ? elecDateStr : null,
       'nextDueDate': nextDueDateStr,
       'rent': double.tryParse(rentCtrl.text) ?? 0.0,
       'securityDeposit': double.tryParse(advanceCtrl.text) ?? 0.0,
       'extraWalletAdvance': 0.0,
-      'prevReading': personType == 'Renter' ? (double.tryParse(initialReadingCtrl.text) ?? 0.0) : 0.0,
+      'prevReading': isRenterOrHostel ? (double.tryParse(initialReadingCtrl.text) ?? 0.0) : 0.0,
       'isClosed': false,
       'closedDate': null,
       'closureDetails': null,
@@ -326,15 +332,17 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     setState(() => renters.add(newEntry));
     await _saveRentersToStorage();
 
-    String welcomeRules = personType == 'Student'
-        ? (studentWelcomeRulesCtrl.text.isNotEmpty ? studentWelcomeRulesCtrl.text : "Welcome Student!")
-        : (renterWelcomeRulesCtrl.text.isNotEmpty ? renterWelcomeRulesCtrl.text : "Welcome Renter!");
+    // Welcome rules logic: Student and Hostel get student rules
+    String welcomeRules = (personType == 'Student' || personType == 'Hostel')
+        ? (studentWelcomeRulesCtrl.text.isNotEmpty ? studentWelcomeRulesCtrl.text : "Welcome to our Institution / Hostel!")
+        : (renterWelcomeRulesCtrl.text.isNotEmpty ? renterWelcomeRulesCtrl.text : "Welcome to Residency!");
 
     String ownerName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Manager";
     String ownerPhone = ownerPhoneCtrl.text.isNotEmpty ? ownerPhoneCtrl.text : "";
-    String feeLabel = personType == 'Student' ? "Monthly Fee" : "Monthly Rent";
+    String feeLabel = (personType == 'Student') ? "Monthly Fee" : "Monthly Rent";
+    String roomLabel = (personType == 'Student') ? "Roll No" : "Room / Bed";
 
-    String msg = "Namaste ${nameCtrl.text.trim()} ji,\n\n$welcomeRules\n\n📌 Registration Details:\nType: $personType\nRoom/Bed: ${roomNoCtrl.text.trim()}\nJoining Date: $rentDateStr\n${personType == 'Renter' ? 'Initial Meter Reading: ${initialReadingCtrl.text} Units\n' : ''}Next Due Date: $nextDueDateStr\n$feeLabel: ₹${rentCtrl.text}\nSecurity Deposit Paid: ₹${advanceCtrl.text}\n\nOwner: $ownerName\nContact: $ownerPhone";
+    String msg = "Namaste ${nameCtrl.text.trim()} ji,\n\n$welcomeRules\n\n📌 Registration Details:\nCategory: $personType\n$roomLabel: ${roomOrRollCtrl.text.trim()}\nJoining Date: $rentDateStr\n${isRenterOrHostel ? 'Initial Meter Reading: ${initialReadingCtrl.text} Units\n' : ''}Next Due Date: $nextDueDateStr\n$feeLabel: ₹${rentCtrl.text}\nSecurity Deposit Paid: ₹${advanceCtrl.text}\n\nOwner: $ownerName\nContact: $ownerPhone";
 
     String sendPhone = (sendToTarget == 'parents' && parentMobileCtrl.text.trim().isNotEmpty)
         ? parentMobileCtrl.text.trim()
@@ -347,7 +355,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     parentMobileCtrl.clear();
     fatherCtrl.clear();
     addressCtrl.clear();
-    roomNoCtrl.clear();
+    roomOrRollCtrl.clear();
     idNumCtrl.clear();
     rentCtrl.clear();
     advanceCtrl.text = '0';
@@ -359,11 +367,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       idCardImgBase64 = null;
     });
 
-    _tabController.animateTo(1);
+    _tabController.animateTo(2); // Redirect to Total Members (Data) tab
   }
 
   void _showEditDialog(Map<String, dynamic> item) {
     bool isStudent = (item['pType'] == 'Student');
+    bool isRenterOrHostel = (item['pType'] == 'Renter' || item['pType'] == 'Hostel');
+
     final eName = TextEditingController(text: item['name']);
     final eMobile = TextEditingController(text: item['mobile']);
     final eParentMobile = TextEditingController(text: item['parentMobile'] ?? '');
@@ -388,18 +398,18 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             children: [
               TextField(controller: eName, decoration: const InputDecoration(labelText: "Full Name")),
               TextField(controller: eMobile, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile Number")),
-              if (isStudent)
+              if (isStudent || item['pType'] == 'Hostel')
                 TextField(controller: eParentMobile, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Parents Mobile Number")),
               TextField(controller: eFather, decoration: const InputDecoration(labelText: "Father / Guardian Name")),
-              TextField(controller: eRoomNo, decoration: const InputDecoration(labelText: "Room / Bed Number")),
+              TextField(controller: eRoomNo, decoration: InputDecoration(labelText: isStudent ? "Student Roll Number" : "Room / Bed / Flat No.")),
               TextField(controller: eAddress, decoration: const InputDecoration(labelText: "Address")),
               TextField(controller: eEntryDate, decoration: InputDecoration(labelText: isStudent ? "Joining Date (YYYY-MM-DD)" : "Rent Entry Date (YYYY-MM-DD)")),
-              if (!isStudent)
+              if (isRenterOrHostel)
                 TextField(controller: eElecDate, decoration: const InputDecoration(labelText: "Electricity Cycle Date (YYYY-MM-DD)")),
               TextField(controller: eDueDate, decoration: const InputDecoration(labelText: "Next Due Date (YYYY-MM-DD)")),
               TextField(controller: eRent, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: isStudent ? "Monthly Student Fee (₹)" : "Monthly Rent (₹)")),
               TextField(controller: eSecurity, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Security Deposit Paid (₹)")),
-              if (!isStudent)
+              if (isRenterOrHostel)
                 TextField(controller: ePrevReading, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Meter Reading (Units)")),
               TextField(controller: eIdNum, decoration: const InputDecoration(labelText: "Identity / Document No")),
             ],
@@ -417,7 +427,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 item['address'] = eAddress.text.trim();
                 item['roomNo'] = eRoomNo.text.trim();
                 item['entryDate'] = eEntryDate.text.trim();
-                if (!isStudent) {
+                if (isRenterOrHostel) {
                   item['elecDate'] = eElecDate.text.trim();
                   item['prevReading'] = double.tryParse(ePrevReading.text) ?? item['prevReading'];
                 }
@@ -477,7 +487,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text("🗓 Joining Date: ${item['entryDate']}"),
-                        Text("Room/Bed: ${item['roomNo'] ?? 'N/A'}"),
+                        Text("${isStudent ? 'Roll No' : 'Room/Bed'}: ${item['roomNo'] ?? 'N/A'}"),
                         Text("🔒 Security Deposit: ₹$security", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
                         Text("⚠️ Pichhla Baki (Unpaid Due): ₹$unpaidDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
                       ],
@@ -530,7 +540,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          isRefund ? "💰 TENANT KO WAPAS (REFUND) KARNA HAI:" : "⚠️ TENANT SE LENA (COLLECT) KARNA HAI:",
+                          isRefund ? "💰 TENANT/STUDENT KO WAPAS (REFUND) KARNA HAI:" : "⚠️ TENANT/STUDENT SE LENA (COLLECT) KARNA HAI:",
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isRefund ? Colors.green.shade900 : Colors.red.shade900),
                         ),
                         const SizedBox(height: 4),
@@ -551,10 +561,11 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
                   String oPhone = ownerPhoneCtrl.text.isNotEmpty ? ownerPhoneCtrl.text : "";
                   String settlementText = isRefund
-                      ? "*₹${netBalance.abs().toStringAsFixed(1)} Tenant ko Refund/Wapas kiya gaya.*"
-                      : "*₹${netBalance.abs().toStringAsFixed(1)} Tenant se Collect/Liya gaya.*";
+                      ? "*₹${netBalance.abs().toStringAsFixed(1)} Refund/Wapas kiya gaya.*"
+                      : "*₹${netBalance.abs().toStringAsFixed(1)} Collect/Liya gaya.*";
 
-                  String nocMsg = "*📜 FINAL ACCOUNT SETTLEMENT / NOC NOTICE*\n--------------------\nName: ${item['name']}\nRoom/Bed: ${item['roomNo'] ?? 'N/A'}\nLeaving Date: $leaveDateFormatted\n--------------------\n• Security Deposit: ₹$security\n• Previous Due: ₹$unpaidDue\n${!isStudent ? '• Final Electricity Bill: ₹$finalElecBill\n' : ''}• Total Dues: ₹$totalDueToPay\n--------------------\n*RESULT:* $settlementText\n--------------------\n*Status: CLEARED & CLOSED ✅*\nVerified By: $oName ($oPhone)\nDhanyawad!";
+                  String roomTag = isStudent ? "Roll No" : "Room/Bed";
+                  String nocMsg = "*📜 FINAL ACCOUNT SETTLEMENT / NOC NOTICE*\n--------------------\nName: ${item['name']}\nCategory: ${item['pType']}\n$roomTag: ${item['roomNo'] ?? 'N/A'}\nLeaving Date: $leaveDateFormatted\n--------------------\n• Security Deposit: ₹$security\n• Previous Due: ₹$unpaidDue\n${!isStudent ? '• Final Electricity Bill: ₹$finalElecBill\n' : ''}• Total Dues: ₹$totalDueToPay\n--------------------\n*RESULT:* $settlementText\n--------------------\n*Status: CLEARED & CLOSED ✅*\nVerified By: $oName ($oPhone)\nDhanyawad!";
 
                   setState(() {
                     item['isClosed'] = true;
@@ -569,7 +580,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   });
                   _saveRentersToStorage();
                   _sendWhatsApp(item['mobile'], nocMsg);
-                  if (isStudent && item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty) {
+                  if (item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty) {
                     _sendWhatsApp(item['parentMobile'], nocMsg);
                   }
                 },
@@ -671,7 +682,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   String dueText = backDue > 0 ? "\n+ Back Due: ₹$backDue" : "";
                   String advText = advanceUsed > 0 ? "\n- Advance Used: ₹$advanceUsed" : "";
 
-                  String msg = "*🎓 MONTHLY STUDENT FEE NOTICE*\n--------------------\nStudent: ${item['name']}\nRoom/Bed: ${item['roomNo'] ?? 'N/A'}\nBill Date: $dateStr\n\nMonthly Fee: ₹$rent$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+                  String msg = "*🎓 MONTHLY STUDENT FEE NOTICE*\n--------------------\nStudent: ${item['name']}\nRoll No: ${item['roomNo'] ?? 'N/A'}\nBill Date: $dateStr\n\nMonthly Fee: ₹$rent$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
 
                   setState(() {
                     item['extraWalletAdvance'] = extraWallet - advanceUsed;
@@ -705,8 +716,8 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // RENTER: 3 OPTIONS (ELECTRICITY / ROOM RENT / COMBINED)
-  void _showRenterBillOptionDialog(Map<String, dynamic> item) {
+  // RENTER & HOSTEL: 3 OPTIONS (ELECTRICITY / ROOM RENT / COMBINED)
+  void _showRenterOrHostelBillOptionDialog(Map<String, dynamic> item) {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
@@ -716,7 +727,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text("⚡ Bill Options for ${item['name']}", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text("⚡ Bill Options for ${item['name']} (${item['pType']})", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 14),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0288D1), padding: const EdgeInsets.symmetric(vertical: 12)),
@@ -735,7 +746,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 Navigator.pop(ctx);
                 _openRentOnlyBill(item);
               },
-              label: const Text("2. Sirf Room Rent Bill (Alag)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: Text(item['pType'] == 'Hostel' ? "2. Sirf Hostel Rent Bill (Alag)" : "2. Sirf Room Rent Bill (Alag)", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(height: 8),
             ElevatedButton.icon(
@@ -745,7 +756,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 Navigator.pop(ctx);
                 _openElectricityCalculationDialog(item, isCombined: true);
               },
-              label: const Text("3. Room Rent + Electricity (Combined Bill)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: Text(item['pType'] == 'Hostel' ? "3. Hostel Rent + Electricity (Combined)" : "3. Room Rent + Electricity (Combined)", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -753,7 +764,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // RENTER: ROOM RENT ONLY BILL
+  // RENTER / HOSTEL: ROOM RENT ONLY BILL
   void _openRentOnlyBill(Map<String, dynamic> item) {
     DateTime billDate = DateTime.now();
     double rent = (item['rent'] as num).toDouble();
@@ -768,9 +779,10 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       builder: (ctx) => StatefulBuilder(
         builder: (c, setDialogState) {
           String dateFormatted = "${billDate.year}-${billDate.month.toString().padLeft(2, '0')}-${billDate.day.toString().padLeft(2, '0')}";
+          String billTitle = item['pType'] == 'Hostel' ? "Hostel Rent" : "Room Rent";
 
           return AlertDialog(
-            title: Text("🏠 Room Rent Bill (${item['name']})"),
+            title: Text("🏠 $billTitle Bill (${item['name']})"),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -783,7 +795,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Monthly Room Rent: ₹$rent", style: const TextStyle(fontWeight: FontWeight.w600)),
+                        Text("Monthly $billTitle: ₹$rent", style: const TextStyle(fontWeight: FontWeight.w600)),
                         if (backDue > 0)
                           Text("+ Pichhla Rent Due: ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
                         if (advanceUsed > 0)
@@ -828,13 +840,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   String dueText = backDue > 0 ? "\n+ Pichhla Rent Due: ₹$backDue" : "";
                   String advText = advanceUsed > 0 ? "\n- Advance Adjusted: ₹$advanceUsed" : "";
 
-                  String msg = "*🏠 MONTHLY ROOM RENT BILL*\n--------------------\nName: ${item['name']}\nRoom/Flat: ${item['roomNo'] ?? 'N/A'}\nBill Date: $dateStr\nRoom Rent: ₹$rent$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+                  String msg = "*🏠 MONTHLY $billTitle BILL*\n--------------------\nName: ${item['name']}\nRoom/Bed: ${item['roomNo'] ?? 'N/A'}\nBill Date: $dateStr\n$billTitle: ₹$rent$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
 
                   setState(() {
                     item['extraWalletAdvance'] = extraWallet - advanceUsed;
                     item['history'].add({
                       'date': dateStr,
-                      'type': 'Room Rent Bill',
+                      'type': '$billTitle Bill',
                       'unitsUsed': 0,
                       'elecBill': 0.0,
                       'rentAmount': rent,
@@ -858,7 +870,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // RENTER: ELECTRICITY OR COMBINED BILL
+  // RENTER / HOSTEL: ELECTRICITY OR COMBINED BILL
   void _openElectricityCalculationDialog(Map<String, dynamic> item, {required bool isCombined}) {
     final currentReadingCtrl = TextEditingController();
     final rateCtrl = TextEditingController(text: defaultUnitRateCtrl.text.isNotEmpty ? defaultUnitRateCtrl.text : '8');
@@ -874,7 +886,8 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       builder: (ctx) => StatefulBuilder(
         builder: (c, setDialogState) {
           String elecDateFormatted = "${customElecDate.year}-${customElecDate.month.toString().padLeft(2, '0')}-${customElecDate.day.toString().padLeft(2, '0')}";
-          
+          String categoryLabel = item['pType'] == 'Hostel' ? 'Hostel Rent' : 'Room Rent';
+
           return AlertDialog(
             title: Text(isCombined ? "📋 Combined Bill (${item['name']})" : "⚡ Electricity Bill (${item['name']})"),
             content: SingleChildScrollView(
@@ -891,7 +904,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       children: [
                         Text("📌 Purani Reading: $startUnits Units", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
                         if (isCombined)
-                          Text("🏠 Room Rent: ₹${item['rent']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                          Text("🏠 $categoryLabel: ₹${item['rent']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                         if (backDue > 0)
                           Text("+ Pichhla Baki (Due): ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
                       ],
@@ -958,12 +971,12 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
                   String upiNum = ownerUpiNumCtrl.text.isNotEmpty ? ownerUpiNumCtrl.text : "";
 
-                  String billTitle = isCombined ? "MONTHLY RENT & ELECTRICITY BILL" : "MONTHLY ELECTRICITY BILL";
+                  String billTitle = isCombined ? "MONTHLY ${item['pType'].toUpperCase()} & ELECTRICITY BILL" : "MONTHLY ELECTRICITY BILL";
                   String dueText = backDue > 0 ? "\n+ Back Due: ₹$backDue" : "";
                   String advText = advanceUsed > 0 ? "\n- Advance Adjusted: ₹$advanceUsed" : "";
-                  String rentText = isCombined ? "Room Rent: ₹$rent\n" : "";
+                  String rentText = isCombined ? "$categoryLabel: ₹$rent\n" : "";
 
-                  String msg = "*🏠 $billTitle*\n--------------------\nName: ${item['name']}\nRoom: ${item['roomNo'] ?? 'N/A'}\nBill Date: $dateStr\nPrevious Reading: $startUnits Units\nCurrent Reading: $endUnits Units\n*Consumed Units: $unitsUsed Units ($endUnits - $startUnits)*\nUnit Rate: ₹$rate / Unit\nElectricity Bill: $unitsUsed x ₹$rate = ₹$elecBill\n$rentText$dueText$advText--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+                  String msg = "*🏠 $billTitle*\n--------------------\nName: ${item['name']}\nRoom/Bed: ${item['roomNo'] ?? 'N/A'}\nBill Date: $dateStr\nPrevious Reading: $startUnits Units\nCurrent Reading: $endUnits Units\n*Consumed Units: $unitsUsed Units ($endUnits - $startUnits)*\nUnit Rate: ₹$rate / Unit\nElectricity Bill: $unitsUsed x ₹$rate = ₹$elecBill\n$rentText$dueText$advText--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
 
                   setState(() {
                     item['prevReading'] = endUnits; 
@@ -971,7 +984,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                     item['extraWalletAdvance'] = extraWallet - advanceUsed;
                     item['history'].add({
                       'date': dateStr,
-                      'type': isCombined ? 'Rent + Electricity Bill' : 'Electricity Bill',
+                      'type': isCombined ? '${item['pType']} + Electricity Bill' : 'Electricity Bill',
                       'startUnits': startUnits.toString(),
                       'endUnits': endUnits.toString(),
                       'unitsUsed': unitsUsed,
@@ -1132,24 +1145,25 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     double advUsed = (billRecord['advanceUsed'] as num?)?.toDouble() ?? 0.0;
     String dueText = backDue > 0 ? "\n+ Back Due: ₹$backDue" : "";
     String advText = advUsed > 0 ? "\n- Advance Used: ₹$advUsed" : "";
+    String roomTag = isStudent ? "Roll No" : "Room/Bed";
 
     String msg = "";
     if (isStudent) {
-      msg = "*🎓 MONTHLY STUDENT FEE NOTICE (REMINDER)*\n--------------------\nStudent: ${item['name']}\nRoom: ${item['roomNo'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\n\nMonthly Fee: ₹${billRecord['rentAmount']}$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+      msg = "*🎓 MONTHLY STUDENT FEE NOTICE (REMINDER)*\n--------------------\nStudent: ${item['name']}\n$roomTag: ${item['roomNo'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\n\nMonthly Fee: ₹${billRecord['rentAmount']}$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
     } else {
       String type = billRecord['type'] ?? 'Room Rent Bill';
       if (type.contains('Electricity')) {
         String unitsDetails = (billRecord['unitsUsed'] != null && billRecord['unitsUsed'] > 0)
             ? "Meter Reading: ${billRecord['startUnits']} to ${billRecord['endUnits']}\nConsumed Units: ${billRecord['unitsUsed']} Units\nElectricity Amount: ₹${billRecord['elecBill']}\n"
             : "";
-        String rentDetails = (billRecord['rentAmount'] != null && billRecord['rentAmount'] > 0) ? "Room Rent: ₹${billRecord['rentAmount']}\n" : "";
-        msg = "*🏠 $type (REMINDER)*\n--------------------\nName: ${item['name']}\nRoom: ${item['roomNo'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\n$unitsDetails$rentDetails$dueText$advText--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+        String rentDetails = (billRecord['rentAmount'] != null && billRecord['rentAmount'] > 0) ? "Rent: ₹${billRecord['rentAmount']}\n" : "";
+        msg = "*🏠 $type (REMINDER)*\n--------------------\nName: ${item['name']}\n$roomTag: ${item['roomNo'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\n$unitsDetails$rentDetails$dueText$advText--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
       } else {
-        msg = "*🏠 MONTHLY ROOM RENT BILL (REMINDER)*\n--------------------\nName: ${item['name']}\nRoom: ${item['roomNo'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\nRoom Rent: ₹${billRecord['rentAmount']}$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+        msg = "*🏠 MONTHLY ${item['pType'].toUpperCase()} BILL (REMINDER)*\n--------------------\nName: ${item['name']}\n$roomTag: ${item['roomNo'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\nRent: ₹${billRecord['rentAmount']}$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
       }
     }
 
-    if (!isStudent) {
+    if (item['pType'] == 'Renter') {
       _sendWhatsApp(item['mobile'], msg);
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bill WhatsApp Par Bhej Diya Gaya!")));
       return;
@@ -1165,15 +1179,15 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text("Student: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text("Name: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
               Text("Bill Amount: ₹$total (${billRecord['date']})"),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
                 value: resendTarget,
                 decoration: const InputDecoration(border: OutlineInputBorder()),
                 items: [
-                  const DropdownMenuItem(value: "both", child: Text("1. Dono Ko (Student + Parents)")),
-                  const DropdownMenuItem(value: "student", child: Text("2. Sirf Student Ko")),
+                  const DropdownMenuItem(value: "both", child: Text("1. Dono Ko (Member + Parents)")),
+                  const DropdownMenuItem(value: "student", child: Text("2. Sirf Member Ko")),
                   if (item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty)
                     const DropdownMenuItem(value: "parents", child: Text("3. Sirf Parents Ko")),
                 ],
@@ -1320,7 +1334,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // DIALOG TO ADD EXPENSE
   void _openAddExpenseDialog() {
     final titleCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
@@ -1381,7 +1394,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // DIALOG TO ADD COMPLAINT
   void _openAddComplaintDialog() {
     final titleCtrl = TextEditingController();
     final roomCtrl = TextEditingController();
@@ -1396,7 +1408,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                TextField(controller: roomCtrl, decoration: const InputDecoration(labelText: "Room / Tenant Name", border: OutlineInputBorder())),
+                TextField(controller: roomCtrl, decoration: const InputDecoration(labelText: "Room / Member Name", border: OutlineInputBorder())),
                 const SizedBox(height: 10),
                 TextField(controller: titleCtrl, maxLines: 2, decoration: const InputDecoration(labelText: "Issue (e.g. Fan not working, Water leak)", border: OutlineInputBorder())),
                 const SizedBox(height: 10),
@@ -1498,8 +1510,8 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             unselectedLabelColor: Colors.white70,
             tabs: const [
               Tab(icon: Icon(Icons.dashboard), text: "Dashboard"),
-              Tab(icon: Icon(Icons.groups), text: "Residents"),
               Tab(icon: Icon(Icons.person_add), text: "+ New Entry"),
+              Tab(icon: Icon(Icons.folder_shared), text: "Total Members (Data)"),
               Tab(icon: Icon(Icons.account_balance_wallet), text: "Expenses & Issues"),
             ],
           ),
@@ -1508,8 +1520,8 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           controller: _tabController,
           children: [
             _buildDashboardView(),
-            _buildRegisteredListView(),
             _buildNewEntryForm(),
+            _buildRegisteredListView(),
             _buildExpensesAndComplaintsView(),
           ],
         ),
@@ -1545,7 +1557,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Quick Action Bar
           Row(
             children: [
               Expanded(
@@ -1560,42 +1571,32 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
               Expanded(
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0288D1), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
-                  onPressed: () => _tabController.animateTo(2),
+                  onPressed: () => _tabController.animateTo(1), // Redirect to + New Entry tab
                   icon: const Icon(Icons.person_add),
-                  label: const Text("+ Add Resident", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                  label: const Text("+ Add Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
 
-          // 4 Metric Cards
           Row(
             children: [
-              Expanded(
-                child: _buildMetricCard("💰 Total Collected", "₹${totalCollected.toStringAsFixed(0)}", Colors.green.shade800, Colors.green.shade50),
-              ),
+              Expanded(child: _buildMetricCard("💰 Total Collected", "₹${totalCollected.toStringAsFixed(0)}", Colors.green.shade800, Colors.green.shade50)),
               const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricCard("⚠️ Market Due (Baki)", "₹${totalPendingDue.toStringAsFixed(0)}", Colors.red.shade800, Colors.red.shade50),
-              ),
+              Expanded(child: _buildMetricCard("⚠️ Market Due (Baki)", "₹${totalPendingDue.toStringAsFixed(0)}", Colors.red.shade800, Colors.red.shade50)),
             ],
           ),
           const SizedBox(height: 8),
           Row(
             children: [
-              Expanded(
-                child: _buildMetricCard("👥 Active Residents", "$activeResidents People", Colors.blue.shade900, Colors.blue.shade50),
-              ),
+              Expanded(child: _buildMetricCard("👥 Total Members", "$activeResidents Active", Colors.blue.shade900, Colors.blue.shade50)),
               const SizedBox(width: 8),
-              Expanded(
-                child: _buildMetricCard("📈 Net Profit", "₹${netProfit.toStringAsFixed(0)}", Colors.indigo.shade900, Colors.indigo.shade50),
-              ),
+              Expanded(child: _buildMetricCard("📈 Net Profit", "₹${netProfit.toStringAsFixed(0)}", Colors.indigo.shade900, Colors.indigo.shade50)),
             ],
           ),
           const SizedBox(height: 14),
 
-          // Security Deposit Overview
           Card(
             color: Colors.indigo.shade50,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -1604,7 +1605,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text("🔒 Total Security Deposits Held:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                  const Text("🔒 Total Security Deposit Held:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
                   Text("₹${totalSecurity.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo)),
                 ],
               ),
@@ -1612,8 +1613,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           ),
           const SizedBox(height: 14),
 
-          // Upcoming Rent Dues (Next 3 Days)
-          const Text("🔔 Rent Due in Next 3 Days", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const Text("🔔 Rent/Fee Due in Next 3 Days", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
           const SizedBox(height: 6),
           _buildUpcomingDuesList(),
         ],
@@ -1653,7 +1653,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       return Card(
         child: Padding(
           padding: const EdgeInsets.all(12),
-          child: Text("Agle 3 dino me kisi ka rent due nahi hai.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+          child: Text("Agle 3 dino me kisi ka rent/fee due nahi hai.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
         ),
       );
     }
@@ -1664,18 +1664,21 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       itemCount: upcoming.length,
       itemBuilder: (c, idx) {
         final item = upcoming[idx];
+        String icon = item['pType'] == 'Student' ? "🎓" : (item['pType'] == 'Hostel' ? "🏢" : "🏠");
+        String roomLabel = item['pType'] == 'Student' ? "Roll No" : "Room/Bed";
+
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4),
           child: ListTile(
             dense: true,
-            leading: Text(item['pType'] == 'Student' ? "🎓" : "🏠", style: const TextStyle(fontSize: 20)),
-            title: Text("${item['name']} (Room: ${item['roomNo'] ?? 'N/A'})", style: const TextStyle(fontWeight: FontWeight.bold)),
+            leading: Text(icon, style: const TextStyle(fontSize: 20)),
+            title: Text("${item['name']} ($roomLabel: ${item['roomNo'] ?? 'N/A'})", style: const TextStyle(fontWeight: FontWeight.bold)),
             subtitle: Text("Due Date: ${item['nextDueDate']} | Fee/Rent: ₹${item['rent']}"),
             trailing: IconButton(
               icon: const Icon(Icons.send, color: Color(0xFF25D366)),
               onPressed: () {
                 String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
-                String msg = "*🔔 RENT DUE REMINDER*\n--------------------\nName: ${item['name']}\nRoom: ${item['roomNo'] ?? 'N/A'}\nDue Date: ${item['nextDueDate']}\nAmount: ₹${item['rent']}\nOwner: $oName";
+                String msg = "*🔔 RENT/FEE DUE REMINDER*\n--------------------\nName: ${item['name']}\n$roomLabel: ${item['roomNo'] ?? 'N/A'}\nDue Date: ${item['nextDueDate']}\nAmount: ₹${item['rent']}\nOwner: $oName";
                 _sendWhatsApp(item['mobile'], msg);
               },
             ),
@@ -1685,11 +1688,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // 2. RESIDENTS LIST VIEW
+  // 2. TOTAL MEMBERS (DATA) VIEW
   Widget _buildRegisteredListView() {
     List<Map<String, dynamic>> filtered = renters;
     if (listFilter == 'Student') {
       filtered = renters.where((r) => r['pType'] == 'Student' && (r['isClosed'] != true)).toList();
+    } else if (listFilter == 'Hostel') {
+      filtered = renters.where((r) => r['pType'] == 'Hostel' && (r['isClosed'] != true)).toList();
     } else if (listFilter == 'Renter') {
       filtered = renters.where((r) => r['pType'] == 'Renter' && (r['isClosed'] != true)).toList();
     } else if (listFilter == 'Closed') {
@@ -1709,7 +1714,9 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
               const SizedBox(width: 6),
               FilterChip(label: const Text("🎓 Students"), selected: listFilter == 'Student', onSelected: (_) => setState(() => listFilter = 'Student')),
               const SizedBox(width: 6),
-              FilterChip(label: const Text("🏠 Renters"), selected: listFilter == 'Renter', onSelected: (_) => setState(() => listFilter = 'Renter')),
+              FilterChip(label: const Text("🏢 Hostel"), selected: listFilter == 'Hostel', onSelected: (_) => setState(() => listFilter = 'Hostel')),
+              const SizedBox(width: 6),
+              FilterChip(label: const Text("🏠 Renters / Family"), selected: listFilter == 'Renter', onSelected: (_) => setState(() => listFilter = 'Renter')),
               const SizedBox(width: 6),
               FilterChip(
                 label: Text("🚪 Left / Closed (${renters.where((r) => r['isClosed'] == true).length})"),
@@ -1727,6 +1734,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   itemBuilder: (ctx, i) {
                     final r = filtered[i];
                     bool isStudent = (r['pType'] == 'Student');
+                    bool isHostel = (r['pType'] == 'Hostel');
                     bool isClosed = (r['isClosed'] == true);
                     double currentDue = _getAccurateUnpaidDue(r, category: 'all');
                     double securityDeposit = (r['securityDeposit'] ?? r['advance'] ?? 0.0) as double;
@@ -1747,6 +1755,11 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       statusText = "DUE: ₹$currentDue";
                     }
 
+                    String categoryIcon = isStudent ? "🎓" : (isHostel ? "🏢" : "🏠");
+                    String roomDisplay = isStudent
+                        ? (r['roomNo'] != null && r['roomNo'].toString().isNotEmpty ? '(Roll No: ' + r['roomNo'] + ')' : '')
+                        : (r['roomNo'] != null && r['roomNo'].toString().isNotEmpty ? '(Room: ' + r['roomNo'] + ')' : '');
+
                     return Card(
                       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                       elevation: 2,
@@ -1762,9 +1775,9 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                               children: [
                                 Row(
                                   children: [
-                                    Text(isStudent ? "🎓" : "🏠", style: const TextStyle(fontSize: 18)),
+                                    Text(categoryIcon, style: const TextStyle(fontSize: 18)),
                                     const SizedBox(width: 6),
-                                    Text("${r['name']} ${r['roomNo'] != null && r['roomNo'].toString().isNotEmpty ? '(Rm: ' + r['roomNo'] + ')' : ''}", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, decoration: isClosed ? TextDecoration.lineThrough : null)),
+                                    Text("${r['name']} $roomDisplay", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, decoration: isClosed ? TextDecoration.lineThrough : null)),
                                   ],
                                 ),
                                 Row(
@@ -1790,7 +1803,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                             Text("📱 Phone: ${r['mobile']} ${r['parentMobile'] != '' && r['parentMobile'] != null ? '\n👨‍👩‍👦 Parents: ' + r['parentMobile'] : ''}", style: const TextStyle(fontSize: 13)),
                             if (r['address'] != null && r['address'].toString().isNotEmpty)
                               Text("📍 Addr: ${r['address']}", style: const TextStyle(fontSize: 12, color: Colors.black87)),
-                            Text("🗓 ${isStudent ? 'Joining Date' : 'Rent Date'}: ${r['entryDate']} ${!isClosed ? '| Due Date: ' + r['nextDueDate'].toString() : ''}", style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                            Text("🗓 Joining Date: ${r['entryDate']} ${!isClosed ? '| Due Date: ' + r['nextDueDate'].toString() : ''}", style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
                             if (!isStudent && r['elecDate'] != null)
                               Text("⚡ Elec Date: ${r['elecDate']}", style: const TextStyle(fontSize: 12, color: Colors.deepOrange)),
                             Text("💰 Fixed ${isStudent ? 'Fee' : 'Rent'}: ₹${r['rent']}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
@@ -1813,7 +1826,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                                     ),
                                   ] else ...[
                                     ElevatedButton.icon(
-                                      onPressed: () => _showRenterBillOptionDialog(r),
+                                      onPressed: () => _showRenterOrHostelBillOptionDialog(r),
                                       style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade800),
                                       icon: const Icon(Icons.receipt_long, color: Colors.white, size: 14),
                                       label: const Text("⚡ Generate Monthly Bill", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
@@ -1852,6 +1865,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   // 3. NEW REGISTRATION FORM VIEW
   Widget _buildNewEntryForm() {
     bool isStudent = (personType == 'Student');
+    bool isRenterOrHostel = (personType == 'Renter' || personType == 'Hostel');
     String rentDateStr = "${rentEntryDate.year}-${rentEntryDate.month.toString().padLeft(2, '0')}-${rentEntryDate.day.toString().padLeft(2, '0')}";
     String elecDateStr = "${elecStartDate.year}-${elecStartDate.month.toString().padLeft(2, '0')}-${elecStartDate.day.toString().padLeft(2, '0')}";
 
@@ -1870,24 +1884,31 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 decoration: const InputDecoration(labelText: "Category Select Karein *", border: OutlineInputBorder()),
                 items: const [
                   DropdownMenuItem(value: "Student", child: Text("🎓 Student")),
+                  DropdownMenuItem(value: "Hostel", child: Text("🏢 Hostel")),
                   DropdownMenuItem(value: "Renter", child: Text("🏠 Renter / Family")),
                 ],
                 onChanged: (v) => setState(() => personType = v!),
               ),
               const SizedBox(height: 12),
-              TextField(controller: nameCtrl, decoration: InputDecoration(labelText: isStudent ? "Student Full Name *" : "Renter Head Full Name *", border: const OutlineInputBorder())),
+              TextField(controller: nameCtrl, decoration: InputDecoration(labelText: isStudent ? "Student Full Name *" : "Member / Head Full Name *", border: const OutlineInputBorder())),
               const SizedBox(height: 10),
-              TextField(controller: mobileCtrl, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: isStudent ? "Student WhatsApp No. *" : "Renter WhatsApp No. *", border: const OutlineInputBorder())),
-              if (isStudent) ...[
+              TextField(controller: mobileCtrl, keyboardType: TextInputType.phone, decoration: InputDecoration(labelText: isStudent ? "Student WhatsApp No. *" : "Member WhatsApp No. *", border: const OutlineInputBorder())),
+              if (isStudent || personType == 'Hostel') ...[
                 const SizedBox(height: 10),
                 TextField(controller: parentMobileCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Parents WhatsApp Number", border: OutlineInputBorder())),
               ],
               const SizedBox(height: 10),
               TextField(controller: fatherCtrl, decoration: InputDecoration(labelText: isStudent ? "Father / Parents Name *" : "Father's Name", border: const OutlineInputBorder())),
               const SizedBox(height: 10),
-              TextField(controller: roomNoCtrl, decoration: const InputDecoration(labelText: "Room / Bed / Flat No. (e.g. 102-A)", border: OutlineInputBorder())),
+              TextField(
+                controller: roomOrRollCtrl,
+                decoration: InputDecoration(
+                  labelText: isStudent ? "Student Roll Number *" : "Room / Bed / Flat No. (e.g. 102-A) *",
+                  border: const OutlineInputBorder(),
+                ),
+              ),
               const SizedBox(height: 10),
-              TextField(controller: addressCtrl, maxLines: 2, decoration: InputDecoration(labelText: isStudent ? "Student Permanent Address *" : "Renter Permanent Address *", border: const OutlineInputBorder())),
+              TextField(controller: addressCtrl, maxLines: 2, decoration: InputDecoration(labelText: isStudent ? "Student Permanent Address *" : "Permanent Address *", border: const OutlineInputBorder())),
               const SizedBox(height: 10),
               InkWell(
                 onTap: () async {
@@ -1906,7 +1927,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   ),
                 ),
               ),
-              if (!isStudent) ...[
+              if (isRenterOrHostel) ...[
                 const SizedBox(height: 10),
                 InkWell(
                   onTap: () async {
@@ -1928,7 +1949,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
               ],
               const SizedBox(height: 10),
               TextField(controller: idNumCtrl, decoration: const InputDecoration(labelText: "Identity / Document Number", border: OutlineInputBorder())),
-              if (!isStudent) ...[
+              if (isRenterOrHostel) ...[
                 const SizedBox(height: 10),
                 TextField(controller: initialReadingCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Initial Meter Reading (e.g. 1200)", border: OutlineInputBorder())),
               ],
@@ -1945,12 +1966,12 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 ],
               ),
               const SizedBox(height: 12),
-              if (isStudent)
+              if (isStudent || personType == 'Hostel')
                 DropdownButtonFormField<String>(
                   value: sendToTarget,
                   decoration: const InputDecoration(labelText: "Welcome Message Kise Bhejna Hai?", border: OutlineInputBorder()),
                   items: const [
-                    DropdownMenuItem(value: "student", child: Text("1. Sirf Student WhatsApp Par")),
+                    DropdownMenuItem(value: "student", child: Text("1. Sirf Member WhatsApp Par")),
                     DropdownMenuItem(value: "parents", child: Text("2. Sirf Parents WhatsApp Par")),
                   ],
                   onChanged: (v) => setState(() => sendToTarget = v!),
@@ -2112,7 +2133,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   ),
                 ),
                 const SizedBox(height: 12),
-                TextField(controller: propertyNameCtrl, decoration: const InputDecoration(labelText: "Hostel / Residency Name", border: OutlineInputBorder())),
+                TextField(controller: propertyNameCtrl, decoration: const InputDecoration(labelText: "Hostel / Residency / Institute Name", border: OutlineInputBorder())),
                 const SizedBox(height: 8),
                 TextField(controller: ownerNameCtrl, decoration: const InputDecoration(labelText: "Owner Full Name", border: OutlineInputBorder())),
                 const SizedBox(height: 8),
@@ -2124,9 +2145,9 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 const SizedBox(height: 8),
                 TextField(controller: defaultUnitRateCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Default Electricity Unit Rate (₹)", border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: studentWelcomeRulesCtrl, maxLines: 3, decoration: const InputDecoration(labelText: "🎓 Student Welcome Rules & Notice", border: OutlineInputBorder())),
+                TextField(controller: studentWelcomeRulesCtrl, maxLines: 3, decoration: const InputDecoration(labelText: "🎓 Student & Hostel Welcome Rules", border: OutlineInputBorder())),
                 const SizedBox(height: 12),
-                TextField(controller: renterWelcomeRulesCtrl, maxLines: 3, decoration: const InputDecoration(labelText: "🏠 Renter Welcome Rules & Notice", border: OutlineInputBorder())),
+                TextField(controller: renterWelcomeRulesCtrl, maxLines: 3, decoration: const InputDecoration(labelText: "🏠 Renter Welcome Rules", border: OutlineInputBorder())),
                 const SizedBox(height: 14),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00897B), minimumSize: const Size(double.infinity, 45)),
@@ -2134,7 +2155,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                     _saveOwnerProfile();
                     Navigator.pop(ctx);
                   },
-                  child: const Text("💾 Save Profile & Property Settings", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  child: const Text("💾 Save Profile & Settings", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                 ),
                 const Divider(height: 25),
                 Row(
