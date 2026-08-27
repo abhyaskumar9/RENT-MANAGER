@@ -159,17 +159,15 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // 100% WORKING WHATSAPP REDIRECT ENGINE
   void _sendWhatsApp(String phone, String text) async {
     String clean = phone.replaceAll(RegExp(r'[^0-9]'), '');
     if (clean.isEmpty) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mobile number missing ya invalid hai!")));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mobile number missing ya galat hai!")));
       }
       return;
     }
 
-    // Auto-Format Indian Phone Numbers
     if (clean.length == 10) {
       clean = '91$clean';
     } else if (clean.length == 11 && clean.startsWith('0')) {
@@ -177,10 +175,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     }
 
     final encodedText = Uri.encodeComponent(text);
-    
-    // Direct native intent URL
     final Uri appIntent = Uri.parse("whatsapp://send?phone=$clean&text=$encodedText");
-    // Universal Web / Deep link
     final Uri universalUrl = Uri.parse("https://api.whatsapp.com/send?phone=$clean&text=$encodedText");
 
     bool launched = false;
@@ -196,34 +191,30 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
 
     if (!launched && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("WhatsApp open nahi ho saka. Kripya WhatsApp install karein.")),
+        const SnackBar(content: Text("WhatsApp open nahi ho saka. Kripya WhatsApp check karein.")),
       );
     }
   }
 
-  double _calculateBackDue(Map<String, dynamic> item, {String filterType = 'all'}) {
-    double totalDue = 0.0;
-    if (item['history'] != null) {
-      for (var h in item['history']) {
-        String hType = h['type'] ?? '';
-        bool match = true;
-        if (filterType == 'electricity') {
-          match = hType.toLowerCase().contains('electricity');
-        } else if (filterType == 'rent') {
-          match = hType.toLowerCase().contains('room rent') || hType.toLowerCase().contains('fee');
-        }
+  // ACCURATE DUE CALCULATION (Only Last Unsettled Balance)
+  double _getLatestPendingDue(Map<String, dynamic> item, {String category = 'all'}) {
+    List history = item['history'] ?? [];
+    if (history.isEmpty) return 0.0;
 
-        if (match) {
-          double total = (h['totalPayable'] as num?)?.toDouble() ?? 0.0;
-          double paid = (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
-          double remaining = total - paid;
-          if (remaining > 0) {
-            totalDue += remaining;
-          }
-        }
-      }
-    }
-    return totalDue;
+    List relevant = history.where((h) {
+      String t = (h['type'] ?? '').toString().toLowerCase();
+      if (category == 'electricity') return t.contains('electricity');
+      if (category == 'rent') return t.contains('room rent') || t.contains('student fee');
+      return true;
+    }).toList();
+
+    if (relevant.isEmpty) return 0.0;
+
+    var latestBill = relevant.last;
+    double total = (latestBill['totalPayable'] as num?)?.toDouble() ?? 0.0;
+    double paid = (latestBill['paidAmount'] as num?)?.toDouble() ?? 0.0;
+    double balance = total - paid;
+    return balance > 0 ? balance : 0.0;
   }
 
   void _saveNewRegistration() async {
@@ -305,6 +296,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     final eFather = TextEditingController(text: item['father'] ?? '');
     final eAddress = TextEditingController(text: item['address'] ?? '');
     final eRent = TextEditingController(text: item['rent'].toString());
+    final eAdvance = TextEditingController(text: (item['advance'] ?? 0.0).toString());
     final eIdNum = TextEditingController(text: item['idNum'] ?? '');
     final ePrevReading = TextEditingController(text: item['prevReading']?.toString() ?? '0');
     final eEntryDate = TextEditingController(text: item['entryDate'] ?? '');
@@ -330,6 +322,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 TextField(controller: eElecDate, decoration: const InputDecoration(labelText: "Electricity Cycle Date (YYYY-MM-DD)")),
               TextField(controller: eDueDate, decoration: const InputDecoration(labelText: "Next Due Date (YYYY-MM-DD)")),
               TextField(controller: eRent, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: isStudent ? "Monthly Student Fee (₹)" : "Monthly Rent (₹)")),
+              TextField(controller: eAdvance, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Advance Balance / Wallet (₹)")),
               if (!isStudent)
                 TextField(controller: ePrevReading, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Meter Reading (Units)")),
               TextField(controller: eIdNum, decoration: const InputDecoration(labelText: "Identity / Document No")),
@@ -353,6 +346,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 }
                 item['nextDueDate'] = eDueDate.text.trim();
                 item['rent'] = double.tryParse(eRent.text) ?? item['rent'];
+                item['advance'] = double.tryParse(eAdvance.text) ?? 0.0;
                 item['idNum'] = eIdNum.text.trim();
               });
               _saveRentersToStorage();
@@ -366,11 +360,17 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
+  // DIALOG: STUDENT MONTHLY BILL WITH AUTO ADVANCE ADJUSTMENT
   void _openStudentGenerateBillDialog(Map<String, dynamic> item) {
     DateTime selectedBillDate = DateTime.now();
     double rent = (item['rent'] as num).toDouble();
-    double backDue = _calculateBackDue(item);
-    double totalPayable = rent + backDue;
+    double backDue = _getLatestPendingDue(item, category: 'rent');
+    double currentAdvance = (item['advance'] as num?)?.toDouble() ?? 0.0;
+
+    double grossTotal = rent + backDue;
+    double advanceUsed = (currentAdvance > 0) ? (currentAdvance >= grossTotal ? grossTotal : currentAdvance) : 0.0;
+    double netPayable = grossTotal - advanceUsed;
+
     String target = 'both';
 
     showDialog(
@@ -395,9 +395,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       children: [
                         Text("Monthly Fee: ₹$rent", style: const TextStyle(fontWeight: FontWeight.w600)),
                         if (backDue > 0)
-                          Text("+ Back Due: ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                          Text("+ Pichhla Baki (Due): ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                        if (advanceUsed > 0)
+                          Text("- Advance Adjusted: ₹$advanceUsed", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade800)),
                         const Divider(height: 10),
-                        Text("TOTAL PAYABLE: ₹$totalPayable", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                        Text("NET PAYABLE: ₹$netPayable", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                        if (currentAdvance > advanceUsed)
+                          Text("Remaining Advance: ₹${currentAdvance - advanceUsed}", style: const TextStyle(fontSize: 11, color: Colors.green)),
                       ],
                     ),
                   ),
@@ -449,10 +453,12 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
                   String upiNum = ownerUpiNumCtrl.text.isNotEmpty ? ownerUpiNumCtrl.text : "";
                   String dueText = backDue > 0 ? "\n+ Back Due: ₹$backDue" : "";
+                  String advText = advanceUsed > 0 ? "\n- Advance Used: ₹$advanceUsed" : "";
 
-                  String msg = "*🎓 MONTHLY STUDENT FEE NOTICE*\n--------------------\nStudent: ${item['name']}\nParent Name: ${item['father'] ?? 'N/A'}\nBill Date: $dateStr\n\nMonthly Fee: ₹$rent$dueText\n--------------------\n*TOTAL PAYABLE: ₹$totalPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+                  String msg = "*🎓 MONTHLY STUDENT FEE NOTICE*\n--------------------\nStudent: ${item['name']}\nParent Name: ${item['father'] ?? 'N/A'}\nBill Date: $dateStr\n\nMonthly Fee: ₹$rent$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
 
                   setState(() {
+                    item['advance'] = currentAdvance - advanceUsed; // Deduct used advance
                     item['history'].add({
                       'date': dateStr,
                       'type': 'Monthly Student Fee',
@@ -460,10 +466,11 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       'elecBill': 0.0,
                       'rentAmount': rent,
                       'backDue': backDue,
-                      'totalPayable': totalPayable,
-                      'paidAmount': 0.0,
-                      'paymentDate': '-',
-                      'status': 'Pending'
+                      'advanceUsed': advanceUsed,
+                      'totalPayable': netPayable,
+                      'paidAmount': (netPayable == 0) ? 0.0 : 0.0,
+                      'paymentDate': (netPayable == 0) ? dateStr : '-',
+                      'status': (netPayable == 0) ? 'Paid' : 'Pending'
                     });
                   });
                   _saveRentersToStorage();
@@ -484,6 +491,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
+  // RENTER: 3 OPTIONS (ELECTRICITY / ROOM RENT / COMBINED)
   void _showRenterBillOptionDialog(Map<String, dynamic> item) {
     showModalBottomSheet(
       context: context,
@@ -533,11 +541,16 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
+  // RENTER: ONLY ROOM RENT BILL WITH ADVANCE ADJUSTMENT
   void _openRentOnlyBill(Map<String, dynamic> item) {
     DateTime billDate = DateTime.now();
     double rent = (item['rent'] as num).toDouble();
-    double backDue = _calculateBackDue(item, filterType: 'rent');
-    double totalPayable = rent + backDue;
+    double backDue = _getLatestPendingDue(item, category: 'rent');
+    double currentAdvance = (item['advance'] as num?)?.toDouble() ?? 0.0;
+
+    double grossTotal = rent + backDue;
+    double advanceUsed = (currentAdvance > 0) ? (currentAdvance >= grossTotal ? grossTotal : currentAdvance) : 0.0;
+    double netPayable = grossTotal - advanceUsed;
 
     showDialog(
       context: context,
@@ -561,9 +574,11 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       children: [
                         Text("Monthly Room Rent: ₹$rent", style: const TextStyle(fontWeight: FontWeight.w600)),
                         if (backDue > 0)
-                          Text("+ Rent Back Due: ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                          Text("+ Pichhla Rent Due: ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                        if (advanceUsed > 0)
+                          Text("- Advance Adjusted: ₹$advanceUsed", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade800)),
                         const Divider(height: 10),
-                        Text("TOTAL PAYABLE: ₹$totalPayable", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
+                        Text("NET PAYABLE: ₹$netPayable", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
                       ],
                     ),
                   ),
@@ -602,10 +617,12 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
                   String upiNum = ownerUpiNumCtrl.text.isNotEmpty ? ownerUpiNumCtrl.text : "";
                   String dueText = backDue > 0 ? "\n+ Rent Back Due: ₹$backDue" : "";
+                  String advText = advanceUsed > 0 ? "\n- Advance Used: ₹$advanceUsed" : "";
 
-                  String msg = "*🏠 MONTHLY ROOM RENT BILL*\n--------------------\nName: ${item['name']}\nBill Date: $dateStr\nRoom Rent: ₹$rent$dueText\n--------------------\n*TOTAL PAYABLE: ₹$totalPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+                  String msg = "*🏠 MONTHLY ROOM RENT BILL*\n--------------------\nName: ${item['name']}\nBill Date: $dateStr\nRoom Rent: ₹$rent$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
 
                   setState(() {
+                    item['advance'] = currentAdvance - advanceUsed;
                     item['history'].add({
                       'date': dateStr,
                       'type': 'Room Rent Bill',
@@ -613,10 +630,11 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       'elecBill': 0.0,
                       'rentAmount': rent,
                       'backDue': backDue,
-                      'totalPayable': totalPayable,
-                      'paidAmount': 0.0,
-                      'paymentDate': '-',
-                      'status': 'Pending'
+                      'advanceUsed': advanceUsed,
+                      'totalPayable': netPayable,
+                      'paidAmount': (netPayable == 0) ? 0.0 : 0.0,
+                      'paymentDate': (netPayable == 0) ? dateStr : '-',
+                      'status': (netPayable == 0) ? 'Paid' : 'Pending'
                     });
                   });
                   _saveRentersToStorage();
@@ -631,14 +649,16 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
+  // RENTER: ELECTRICITY OR COMBINED BILL WITH ADVANCE ADJUSTMENT
   void _openElectricityCalculationDialog(Map<String, dynamic> item, {required bool isCombined}) {
     final currentReadingCtrl = TextEditingController();
     final rateCtrl = TextEditingController(text: defaultUnitRateCtrl.text.isNotEmpty ? defaultUnitRateCtrl.text : '8');
     DateTime customElecDate = DateTime.now();
     double startUnits = (item['prevReading'] as num).toDouble();
     double backDue = isCombined 
-        ? _calculateBackDue(item, filterType: 'all')
-        : _calculateBackDue(item, filterType: 'electricity');
+        ? _getLatestPendingDue(item, category: 'all')
+        : _getLatestPendingDue(item, category: 'electricity');
+    double currentAdvance = (item['advance'] as num?)?.toDouble() ?? 0.0;
 
     showDialog(
       context: context,
@@ -662,7 +682,9 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       children: [
                         Text("📌 Purani Reading: $startUnits Units", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
                         if (backDue > 0)
-                          Text("+ Purana Due: ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                          Text("+ Pichhla Baki (Due): ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                        if (currentAdvance > 0)
+                          Text("💎 Advance Balance Available: ₹$currentAdvance", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                       ],
                     ),
                   ),
@@ -721,7 +743,10 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   double unitsUsed = endUnits - startUnits;
                   double elecBill = unitsUsed * rate;
                   double rent = isCombined ? (item['rent'] as num).toDouble() : 0.0;
-                  double totalPayable = elecBill + rent + backDue;
+                  double grossTotal = elecBill + rent + backDue;
+
+                  double advanceUsed = (currentAdvance > 0) ? (currentAdvance >= grossTotal ? grossTotal : currentAdvance) : 0.0;
+                  double netPayable = grossTotal - advanceUsed;
 
                   String dateStr = elecDateFormatted;
                   String phone = item['mobile'];
@@ -731,13 +756,15 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
 
                   String billTitle = isCombined ? "MONTHLY RENT & ELECTRICITY BILL" : "MONTHLY ELECTRICITY BILL";
                   String dueText = backDue > 0 ? "\n+ Back Due: ₹$backDue" : "";
+                  String advText = advanceUsed > 0 ? "\n- Advance Used: ₹$advanceUsed" : "";
                   String rentText = isCombined ? "Room Rent: ₹$rent\n" : "";
 
-                  String msg = "*🏠 $billTitle*\n--------------------\nName: ${item['name']}\nBill Date: $dateStr\nPrevious Reading: $startUnits Units\nCurrent Reading: $endUnits Units\n*Consumed Units: $unitsUsed Units ($endUnits - $startUnits)*\nUnit Rate: ₹$rate / Unit\nElectricity Bill: $unitsUsed x ₹$rate = ₹$elecBill\n$rentText$dueText--------------------\n*TOTAL PAYABLE: ₹$totalPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+                  String msg = "*🏠 $billTitle*\n--------------------\nName: ${item['name']}\nBill Date: $dateStr\nPrevious Reading: $startUnits Units\nCurrent Reading: $endUnits Units\n*Consumed Units: $unitsUsed Units ($endUnits - $startUnits)*\nUnit Rate: ₹$rate / Unit\nElectricity Bill: $unitsUsed x ₹$rate = ₹$elecBill\n$rentText$dueText$advText--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
 
                   setState(() {
                     item['prevReading'] = endUnits; 
                     item['elecDate'] = dateStr;
+                    item['advance'] = currentAdvance - advanceUsed;
                     item['history'].add({
                       'date': dateStr,
                       'type': isCombined ? 'Rent + Electricity Bill' : 'Electricity Bill',
@@ -747,10 +774,11 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       'elecBill': elecBill,
                       'rentAmount': rent,
                       'backDue': backDue,
-                      'totalPayable': totalPayable,
-                      'paidAmount': 0.0,
-                      'paymentDate': '-',
-                      'status': 'Pending'
+                      'advanceUsed': advanceUsed,
+                      'totalPayable': netPayable,
+                      'paidAmount': (netPayable == 0) ? 0.0 : 0.0,
+                      'paymentDate': (netPayable == 0) ? dateStr : '-',
+                      'status': (netPayable == 0) ? 'Paid' : 'Pending'
                     });
                   });
                   _saveRentersToStorage();
@@ -765,6 +793,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
+  // PAYMENT ENTRY DIALOG: HANDLES NORMAL & OVERPAYMENTS AUTOMATICALLY INTO ADVANCE
   void _openPaymentRecordDialog(Map<String, dynamic> item, Map<String, dynamic> billRecord) {
     double total = (billRecord['totalPayable'] as num).toDouble();
     double currentPaid = (billRecord['paidAmount'] as num?)?.toDouble() ?? 0.0;
@@ -777,6 +806,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
         builder: (c, setDialogState) {
           double enteredPaid = double.tryParse(paidCtrl.text) ?? 0.0;
           double remainingDue = total - enteredPaid;
+          double extraPaid = enteredPaid > total ? (enteredPaid - total) : 0.0;
           String pDateFormatted = "${paymentDate.year}-${paymentDate.month.toString().padLeft(2, '0')}-${paymentDate.day.toString().padLeft(2, '0')}";
 
           return AlertDialog(
@@ -794,8 +824,8 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text("📌 Bill Type: ${billRecord['type']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text("📅 Bill Generated Date: ${billRecord['date']}"),
-                        Text("💰 Total Bill Amount: ₹$total", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                        Text("📅 Bill Date: ${billRecord['date']}"),
+                        Text("💰 Bill Amount: ₹$total", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
                       ],
                     ),
                   ),
@@ -850,11 +880,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          enteredPaid >= total
-                              ? "✅ Status: PAID (Both Amounts Equal)"
-                              : (enteredPaid > 0
-                                  ? "⚠️ Status: PARTIAL DUE (Balance: ₹${remainingDue.toStringAsFixed(1)})"
-                                  : "❌ Status: UNPAID (Due: ₹$total)"),
+                          enteredPaid > total
+                              ? "🎉 FULL PAID + ADVANCE CREDIT"
+                              : (enteredPaid == total && total > 0
+                                  ? "✅ Status: ALL PAID (Due: ₹0)"
+                                  : (enteredPaid > 0
+                                      ? "⚠️ Status: PARTIAL DUE (Balance: ₹${remainingDue.toStringAsFixed(1)})"
+                                      : "❌ Status: UNPAID (Due: ₹$total)")),
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: enteredPaid >= total
@@ -862,8 +894,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                                 : (enteredPaid > 0 ? Colors.orange.shade900 : Colors.red.shade900),
                           ),
                         ),
-                        if (enteredPaid > 0 && enteredPaid < total)
+                        if (extraPaid > 0) ...[
+                          const SizedBox(height: 4),
+                          Text("💎 Extra ₹$extraPaid unke Advance Wallet me add ho jayega aur agle bill me adjust hoga!", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
+                        ] else if (enteredPaid > 0 && enteredPaid < total) ...[
+                          const SizedBox(height: 4),
                           Text("Calculation: ₹$total (Total) - ₹$enteredPaid (Paid) = ₹${remainingDue.toStringAsFixed(1)}", style: const TextStyle(fontSize: 11, color: Colors.black87)),
+                        ],
                       ],
                     ),
                   ),
@@ -877,6 +914,9 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 onPressed: () {
                   Navigator.pop(ctx);
                   double finalPaid = double.tryParse(paidCtrl.text) ?? 0.0;
+                  double extra = (finalPaid > total) ? (finalPaid - total) : 0.0;
+                  double effectivePaid = (finalPaid > total) ? total : finalPaid;
+                  
                   String newStatus;
                   if (finalPaid >= total) {
                     newStatus = 'Paid';
@@ -887,17 +927,22 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   }
 
                   setState(() {
-                    billRecord['paidAmount'] = finalPaid;
+                    if (extra > 0) {
+                      // Credit extra money to Advance wallet
+                      item['advance'] = ((item['advance'] as num?)?.toDouble() ?? 0.0) + extra;
+                    }
+                    billRecord['paidAmount'] = effectivePaid;
                     billRecord['paymentDate'] = pDateFormatted;
                     billRecord['status'] = newStatus;
                   });
                   _saveRentersToStorage();
 
                   String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
-                  String receiptMsg = "*🧾 PAYMENT ACKNOWLEDGEMENT / RECEIPT*\n--------------------\nName: ${item['name']}\nPayment Date: $pDateFormatted\nTotal Bill: ₹$total\n*Amount Paid: ₹$finalPaid*\n*Remaining Due: ₹${(total - finalPaid).clamp(0, double.infinity)}*\nStatus: $newStatus\n--------------------\nReceived By: $oName\nDhanyawad!";
+                  String extraNote = extra > 0 ? "\n🎉 Extra ₹$extra aapke Advance Account me credit ho gaya hai." : "";
+                  String receiptMsg = "*🧾 PAYMENT ACKNOWLEDGEMENT / RECEIPT*\n--------------------\nName: ${item['name']}\nPayment Date: $pDateFormatted\nTotal Bill: ₹$total\n*Amount Paid: ₹$finalPaid*\n*Remaining Due: ₹${(total - finalPaid).clamp(0, double.infinity)}*$extraNote\nStatus: $newStatus\n--------------------\nReceived By: $oName\nDhanyawad!";
                   _sendWhatsApp(item['mobile'], receiptMsg);
                 },
-                child: const Text("Save & Send Receipt", style: TextStyle(color: Colors.white)),
+                child: const Text("Save & Send Receipt", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -906,22 +951,21 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  void _resendBillWhatsApp(Map<String, dynamic> item, Map<String, dynamic> billRecord, {bool sendToParent = false}) {
+  // SINGLE RESEND DIALOG WITH RECIPIENT SELECTION
+  void _openResendChoiceDialog(Map<String, dynamic> item, Map<String, dynamic> billRecord) {
     bool isStudent = (item['pType'] == 'Student');
-    String phone = (sendToParent && item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty)
-        ? item['parentMobile']
-        : item['mobile'];
-
     String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
     String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
     String upiNum = ownerUpiNumCtrl.text.isNotEmpty ? ownerUpiNumCtrl.text : "";
     double total = (billRecord['totalPayable'] as num).toDouble();
     double backDue = (billRecord['backDue'] as num?)?.toDouble() ?? 0.0;
+    double advUsed = (billRecord['advanceUsed'] as num?)?.toDouble() ?? 0.0;
     String dueText = backDue > 0 ? "\n+ Back Due: ₹$backDue" : "";
+    String advText = advUsed > 0 ? "\n- Advance Used: ₹$advUsed" : "";
 
     String msg = "";
     if (isStudent) {
-      msg = "*🎓 MONTHLY STUDENT FEE NOTICE (REMINDER)*\n--------------------\nStudent: ${item['name']}\nParent Name: ${item['father'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\n\nMonthly Fee: ₹${billRecord['rentAmount']}$dueText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+      msg = "*🎓 MONTHLY STUDENT FEE NOTICE (REMINDER)*\n--------------------\nStudent: ${item['name']}\nParent Name: ${item['father'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\n\nMonthly Fee: ₹${billRecord['rentAmount']}$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
     } else {
       String type = billRecord['type'] ?? 'Room Rent Bill';
       if (type.contains('Electricity')) {
@@ -931,19 +975,69 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
         String rentDetails = (billRecord['rentAmount'] != null && billRecord['rentAmount'] > 0)
             ? "Room Rent: ₹${billRecord['rentAmount']}\n"
             : "";
-        msg = "*🏠 $type (REMINDER)*\n--------------------\nName: ${item['name']}\nBill Date: ${billRecord['date']}\n$unitsDetails$rentDetails$dueText--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+        msg = "*🏠 $type (REMINDER)*\n--------------------\nName: ${item['name']}\nBill Date: ${billRecord['date']}\n$unitsDetails$rentDetails$dueText$advText--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
       } else {
-        msg = "*🏠 MONTHLY ROOM RENT BILL (REMINDER)*\n--------------------\nName: ${item['name']}\nBill Date: ${billRecord['date']}\nRoom Rent: ₹${billRecord['rentAmount']}$dueText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+        msg = "*🏠 MONTHLY ROOM RENT BILL (REMINDER)*\n--------------------\nName: ${item['name']}\nBill Date: ${billRecord['date']}\nRoom Rent: ₹${billRecord['rentAmount']}$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
       }
     }
 
-    _sendWhatsApp(phone, msg);
-    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Same Bill WhatsApp Par Dubara Bhej Diya Gaya!")));
+    if (!isStudent) {
+      _sendWhatsApp(item['mobile'], msg);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bill WhatsApp Par Bhej Diya Gaya!")));
+      return;
+    }
+
+    String resendTarget = 'both';
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) => AlertDialog(
+          title: const Text("📲 Send Bill on WhatsApp"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Student: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text("Bill Amount: ₹$total (${billRecord['date']})"),
+              const SizedBox(height: 12),
+              const Text("Kise Bhejna Hai?", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              const SizedBox(height: 6),
+              DropdownButtonFormField<String>(
+                value: resendTarget,
+                decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
+                items: [
+                  const DropdownMenuItem(value: "both", child: Text("1. Dono Ko (Student + Parents)")),
+                  const DropdownMenuItem(value: "student", child: Text("2. Sirf Student Ko")),
+                  if (item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty)
+                    const DropdownMenuItem(value: "parents", child: Text("3. Sirf Parents Ko")),
+                ],
+                onChanged: (v) => setDialogState(() => resendTarget = v!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366)),
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (resendTarget == 'student' || resendTarget == 'both') {
+                  _sendWhatsApp(item['mobile'], msg);
+                }
+                if ((resendTarget == 'parents' || resendTarget == 'both') && item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty) {
+                  _sendWhatsApp(item['parentMobile'], msg);
+                }
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bill WhatsApp Par Bhej Diya Gaya!")));
+              },
+              child: const Text("Send WhatsApp", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void _showHistoryDialog(Map<String, dynamic> item) {
-    bool isStudent = (item['pType'] == 'Student');
-
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
@@ -976,6 +1070,10 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                           cardBgColor = Colors.orange.shade50;
                           statusBadgeColor = Colors.orange.shade800;
                           statusBadgeText = "PARTIAL: ₹${remaining.toStringAsFixed(0)} ⚠️";
+                        } else if (total == 0 && (h['status'] == 'Paid')) {
+                          cardBgColor = Colors.green.shade50;
+                          statusBadgeColor = Colors.green;
+                          statusBadgeText = "PAID (Advance) ✅";
                         } else {
                           cardBgColor = Colors.red.shade50;
                           statusBadgeColor = Colors.red;
@@ -1026,31 +1124,23 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                                       Text("Paid Amount: ₹$paid", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
                                     ],
                                   ),
+                                  if (h['advanceUsed'] != null && (h['advanceUsed'] as num) > 0) ...[
+                                    const SizedBox(height: 2),
+                                    Text("💎 Advance Adjusted: ₹${h['advanceUsed']}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
+                                  ],
                                   if (remaining > 0 && paid > 0) ...[
-                                    const SizedBox(height: 4),
-                                    Text("⚠️ Balance Due: ₹${remaining.toStringAsFixed(1)} (Subtracted)", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.deepOrange.shade900)),
+                                    const SizedBox(height: 2),
+                                    Text("⚠️ Remaining Due: ₹${remaining.toStringAsFixed(1)}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.deepOrange.shade900)),
                                   ],
                                   const SizedBox(height: 8),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Wrap(
-                                        spacing: 4,
-                                        children: [
-                                          OutlinedButton.icon(
-                                            style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2)),
-                                            onPressed: () => _resendBillWhatsApp(item, h, sendToParent: false),
-                                            icon: const Icon(Icons.refresh, size: 12, color: Color(0xFF25D366)),
-                                            label: Text(isStudent ? "Send (Student) 🔁" : "Send Bill 🔁", style: const TextStyle(fontSize: 10)),
-                                          ),
-                                          if (isStudent && item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty)
-                                            OutlinedButton.icon(
-                                              style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2)),
-                                              onPressed: () => _resendBillWhatsApp(item, h, sendToParent: true),
-                                              icon: const Icon(Icons.refresh, size: 12, color: Color(0xFF25D366)),
-                                              label: const Text("Send (Parents) 🔁", style: TextStyle(fontSize: 10)),
-                                            ),
-                                        ],
+                                      OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
+                                        onPressed: () => _openResendChoiceDialog(item, h),
+                                        icon: const Icon(Icons.send, size: 12, color: Color(0xFF25D366)),
+                                        label: const Text("Send Bill 🔁", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                       ),
                                       ElevatedButton(
                                         style: ElevatedButton.styleFrom(
@@ -1363,19 +1453,20 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   itemBuilder: (ctx, i) {
                     final r = filtered[i];
                     bool isStudent = (r['pType'] == 'Student');
-                    double backDue = _calculateBackDue(r);
+                    double currentDue = _getLatestPendingDue(r, category: 'all');
+                    double currentAdvance = (r['advance'] as num?)?.toDouble() ?? 0.0;
                     bool hasHistory = (r['history'] != null && (r['history'] as List).isNotEmpty);
-                    bool isFullyPaid = (backDue == 0 && hasHistory);
-                    bool isPartial = (backDue > 0 && hasHistory);
+                    bool isFullyPaid = (currentDue == 0 && hasHistory);
+                    bool isPartial = (currentDue > 0 && hasHistory);
 
                     Color statusColor = Colors.red.shade400;
-                    String statusText = "UNPAID (Due: ₹$backDue)";
+                    String statusText = "UNPAID (Due: ₹$currentDue)";
                     if (isFullyPaid) {
                       statusColor = Colors.green;
                       statusText = "ALL PAID ✅";
                     } else if (isPartial) {
                       statusColor = Colors.orange.shade800;
-                      statusText = "PARTIAL: ₹$backDue";
+                      statusText = "DUE: ₹$currentDue";
                     }
 
                     return Card(
@@ -1435,6 +1526,8 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                             if (!isStudent && r['elecDate'] != null)
                               Text("⚡ Elec Date: ${r['elecDate']}", style: const TextStyle(fontSize: 12, color: Colors.deepOrange)),
                             Text("💰 Fixed ${isStudent ? 'Fee' : 'Rent'}: ₹${r['rent']}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            if (currentAdvance > 0)
+                              Text("💎 Advance Balance: ₹$currentAdvance", style: const TextStyle(fontSize: 13, color: Color(0xFF2E7D32), fontWeight: FontWeight.bold)),
                             if (!isStudent)
                               Text("⚡ Current Base Reading: ${r['prevReading']} Units", style: const TextStyle(fontSize: 12, color: Colors.brown, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 10),
