@@ -1,4 +1,4 @@
-name: Build Android Universal APK
+name: Build Android Signed Release APK
 
 on:
   push:
@@ -21,11 +21,11 @@ jobs:
           flutter-version: '3.24.x'
           channel: 'stable'
 
-      # Step 1: Create proper Android skeleton
+      # 1. Generate Clean Android Platform
       - name: Generate Android Skeleton
         run: flutter create . --project-name rent_manager --platforms=android --org com.app.rentmanager
 
-      # Step 2: Inject WhatsApp query visibility
+      # 2. Add WhatsApp queries to AndroidManifest
       - name: Add WhatsApp Queries to AndroidManifest
         run: |
           python3 -c "
@@ -52,17 +52,33 @@ jobs:
                   f.write(content)
           "
 
-      # Step 3: Fetch dependencies
+      # 3. Configure Official Signing in build.gradle (Fix for Direct Install)
+      - name: Configure Gradle Signing
+        run: |
+          python3 -c "
+          gradle_path = 'android/app/build.gradle'
+          with open(gradle_path, 'r') as f:
+              content = f.read()
+          
+          # Ensure release buildType uses valid signingConfig
+          if 'signingConfig = signingConfigs.debug' not in content:
+              content = content.replace('buildTypes {', 'buildTypes {\n        release {\n            signingConfig = signingConfigs.debug\n        }')
+          
+          with open(gradle_path, 'w') as f:
+              f.write(content)
+          "
+
+      # 4. Fetch Dependencies
       - name: Get Dependencies
         run: flutter pub get
 
-      # Step 4: Build standard direct release APK
-      - name: Build Standard Release APK
-        run: flutter build apk --release
+      # 5. Build Signed Universal APK
+      - name: Build Signed Universal Release APK
+        run: flutter build apk --release --no-tree-shake-icons
 
-      # Step 5: Upload Artifact
-      - name: Upload Release APK
+      # 6. Upload Final Installable APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: RentManager-App-Release
+          name: RentManager-Final-Install
           path: build/app/outputs/flutter-apk/app-release.apk
