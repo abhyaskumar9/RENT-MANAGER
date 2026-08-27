@@ -21,42 +21,48 @@ jobs:
           flutter-version: '3.24.x'
           channel: 'stable'
 
+      # Step 1: Create proper Android skeleton
+      - name: Generate Android Skeleton
+        run: flutter create . --project-name rent_manager --platforms=android --org com.app.rentmanager
+
+      # Step 2: Inject WhatsApp query visibility
       - name: Add WhatsApp Queries to AndroidManifest
         run: |
           python3 -c "
           manifest_path = 'android/app/src/main/AndroidManifest.xml'
-          import os
-          if os.path.exists(manifest_path):
-              with open(manifest_path, 'r') as f:
-                  content = f.read()
-              queries = '''
-                  <queries>
-                      <package android:name=\"com.whatsapp\" />
-                      <package android:name=\"com.whatsapp.w4b\" />
-                      <intent>
-                          <action android:name=\"android.intent.action.VIEW\" />
-                          <data android:scheme=\"https\" />
-                      </intent>
-                      <intent>
-                          <action android:name=\"android.intent.action.VIEW\" />
-                          <data android:scheme=\"whatsapp\" />
-                      </intent>
-                  </queries>
-              '''
-              if '<queries>' not in content and '<application' in content:
-                  content = content.replace('<application', queries + '\n    <application')
-                  with open(manifest_path, 'w') as f:
-                      f.write(content)
+          with open(manifest_path, 'r') as f:
+              content = f.read()
+          queries = '''
+              <queries>
+                  <package android:name=\"com.whatsapp\" />
+                  <package android:name=\"com.whatsapp.w4b\" />
+                  <intent>
+                      <action android:name=\"android.intent.action.VIEW\" />
+                      <data android:scheme=\"https\" />
+                  </intent>
+                  <intent>
+                      <action android:name=\"android.intent.action.VIEW\" />
+                      <data android:scheme=\"whatsapp\" />
+                  </intent>
+              </queries>
+          '''
+          if '<queries>' not in content:
+              content = content.replace('<application', queries + '\n    <application')
+              with open(manifest_path, 'w') as f:
+                  f.write(content)
           "
 
+      # Step 3: Fetch dependencies
       - name: Get Dependencies
         run: flutter pub get
 
-      - name: Build Universal Release APK
+      # Step 4: Build standard direct release APK
+      - name: Build Standard Release APK
         run: flutter build apk --release
 
+      # Step 5: Upload Artifact
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
-          name: RentManager-Universal-Release-APK
+          name: RentManager-App-Release
           path: build/app/outputs/flutter-apk/app-release.apk
