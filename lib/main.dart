@@ -19,13 +19,17 @@ class RentManagerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'RentManager Pro Enterprise',
+      title: 'RentManager Pro',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorSchemeSeed: const Color(0xFF01579B),
-        scaffoldBackgroundColor: const Color(0xFFF1F5F9),
         fontFamily: 'Roboto',
+        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF0F172A),
+          primary: const Color(0xFF0F766E),
+          surface: Colors.white,
+        ),
       ),
       home: const MainHomeScreen(),
     );
@@ -54,10 +58,10 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   final parentMobileCtrl = TextEditingController();
   final fatherCtrl = TextEditingController();
   final addressCtrl = TextEditingController();
-  final roomOrRollCtrl = TextEditingController(); // Roll No for Student, Room/Bed for Hostel & Renter
+  final roomOrRollCtrl = TextEditingController();
   final idNumCtrl = TextEditingController();
   final rentCtrl = TextEditingController();
-  final advanceCtrl = TextEditingController(text: '0'); // Security Deposit
+  final advanceCtrl = TextEditingController(text: '0');
   final initialReadingCtrl = TextEditingController(text: '0');
   
   DateTime rentEntryDate = DateTime.now();
@@ -234,7 +238,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     return due;
   }
 
-  // BULK WHATSAPP SENDER
   void _sendBulkReminders() {
     List<Map<String, dynamic>> unpaidList = renters.where((r) => r['isClosed'] != true && _getAccurateUnpaidDue(r) > 0).toList();
     if (unpaidList.isEmpty) {
@@ -245,7 +248,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text("📢 Bulk Reminders (${unpaidList.length} Unpaid)"),
+        title: Text("📢 Bulk Reminders (${unpaidList.length} Unpaid)", style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -262,7 +265,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Text("$roomLabel | Total Due: ₹$due"),
                 trailing: IconButton(
-                  icon: const Icon(Icons.send, color: Color(0xFF25D366)),
+                  icon: const Icon(Icons.send_rounded, color: Color(0xFF25D366)),
                   onPressed: () {
                     String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
                     String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
@@ -306,7 +309,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
 
     Map<String, dynamic> newEntry = {
       'id': DateTime.now().millisecondsSinceEpoch,
-      'pType': personType, // 'Student', 'Renter', or 'Hostel'
+      'pType': personType,
       'name': nameCtrl.text.trim(),
       'mobile': mobileCtrl.text.trim(),
       'parentMobile': parentMobileCtrl.text.trim(),
@@ -332,7 +335,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     setState(() => renters.add(newEntry));
     await _saveRentersToStorage();
 
-    // Welcome rules logic: Student and Hostel get student rules
     String welcomeRules = (personType == 'Student' || personType == 'Hostel')
         ? (studentWelcomeRulesCtrl.text.isNotEmpty ? studentWelcomeRulesCtrl.text : "Welcome to our Institution / Hostel!")
         : (renterWelcomeRulesCtrl.text.isNotEmpty ? renterWelcomeRulesCtrl.text : "Welcome to Residency!");
@@ -367,7 +369,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       idCardImgBase64 = null;
     });
 
-    _tabController.animateTo(2); // Redirect to Total Members (Data) tab
+    _tabController.animateTo(2);
   }
 
   void _showEditDialog(Map<String, dynamic> item) {
@@ -391,7 +393,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text("✏️ Edit: ${item['name']}"),
+        title: Text("✏️ Edit: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
@@ -418,6 +420,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
             onPressed: () {
               setState(() {
                 item['name'] = eName.text.trim();
@@ -447,7 +450,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // ACCOUNT CLOSE DIALOG
   void _openCloseAccountDialog(Map<String, dynamic> item) {
     bool isStudent = (item['pType'] == 'Student');
     DateTime leaveDate = DateTime.now();
@@ -481,15 +483,16 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("🗓 Joining Date: ${item['entryDate']}"),
-                        Text("${isStudent ? 'Roll No' : 'Room/Bed'}: ${item['roomNo'] ?? 'N/A'}"),
-                        Text("🔒 Security Deposit: ₹$security", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
-                        Text("⚠️ Pichhla Baki (Unpaid Due): ₹$unpaidDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                        Text("🗓 Joining Date: ${item['entryDate']}", style: const TextStyle(fontSize: 12)),
+                        Text("${isStudent ? 'Roll No' : 'Room/Bed'}: ${item['roomNo'] ?? 'N/A'}", style: const TextStyle(fontSize: 12)),
+                        const Divider(height: 12),
+                        Text("🔒 Security Deposit: ₹$security", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
+                        Text("⚠️ Pichhla Baki (Unpaid Due): ₹$unpaidDue", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE11D48))),
                       ],
                     ),
                   ),
@@ -500,13 +503,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       if (p != null) setDialogState(() => leaveDate = p);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("📅 Leaving Date: $leaveDateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
-                          const Icon(Icons.calendar_month, color: Colors.red, size: 20),
+                          Text("📅 Leaving Date: $leaveDateFormatted", style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const Icon(Icons.calendar_month, color: Color(0xFFE11D48), size: 20),
                         ],
                       ),
                     ),
@@ -530,21 +533,21 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   const SizedBox(height: 14),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: isRefund ? Colors.green.shade50 : Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: isRefund ? Colors.green : Colors.red, width: 1.5),
+                      color: isRefund ? const Color(0xFFECFDF5) : const Color(0xFFFFF1F2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isRefund ? const Color(0xFF10B981) : const Color(0xFFF43F5E), width: 1.5),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           isRefund ? "💰 TENANT/STUDENT KO WAPAS (REFUND) KARNA HAI:" : "⚠️ TENANT/STUDENT SE LENA (COLLECT) KARNA HAI:",
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isRefund ? Colors.green.shade900 : Colors.red.shade900),
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isRefund ? const Color(0xFF047857) : const Color(0xFFBE123C)),
                         ),
                         const SizedBox(height: 4),
-                        Text("₹${netBalance.abs().toStringAsFixed(1)}", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isRefund ? Colors.green.shade900 : Colors.red.shade900)),
+                        Text("₹${netBalance.abs().toStringAsFixed(1)}", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isRefund ? const Color(0xFF047857) : const Color(0xFFBE123C))),
                         Text("Hisaab: Security (₹$security) - Total Due (₹$totalDueToPay)", style: const TextStyle(fontSize: 11, color: Colors.black54)),
                       ],
                     ),
@@ -555,7 +558,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC62828)),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white),
                 onPressed: () {
                   Navigator.pop(ctx);
                   String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
@@ -584,7 +587,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                     _sendWhatsApp(item['parentMobile'], nocMsg);
                   }
                 },
-                child: const Text("Confirm & Close Account", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text("Confirm & Close Account", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -593,7 +596,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // DIALOG: STUDENT MONTHLY BILL
   void _openStudentGenerateBillDialog(Map<String, dynamic> item) {
     DateTime selectedBillDate = DateTime.now();
     double rent = (item['rent'] as num).toDouble();
@@ -611,7 +613,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           String dateFormatted = "${selectedBillDate.year}-${selectedBillDate.month.toString().padLeft(2, '0')}-${selectedBillDate.day.toString().padLeft(2, '0')}";
 
           return AlertDialog(
-            title: Text("⚡ Fee Notice: ${item['name']}"),
+            title: Text("⚡ Fee Notice: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -619,18 +621,18 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(12)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text("Monthly Fee: ₹$rent", style: const TextStyle(fontWeight: FontWeight.w600)),
                         if (backDue > 0)
-                          Text("+ Pichhla Baki (Due): ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                          Text("+ Pichhla Baki (Due): ₹$backDue", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE11D48))),
                         if (advanceUsed > 0)
-                          Text("- Advance Adjusted: ₹$advanceUsed", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade800)),
-                        const Divider(height: 10),
-                        Text("NET TOTAL PAYABLE: ₹$netPayable", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                          Text("- Advance Adjusted: ₹$advanceUsed", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
+                        const Divider(height: 12),
+                        Text("NET TOTAL PAYABLE: ₹$netPayable", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A))),
                       ],
                     ),
                   ),
@@ -641,13 +643,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       if (p != null) setDialogState(() => selectedBillDate = p);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("📅 Bill Date: $dateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
-                          const Icon(Icons.calendar_month, color: Colors.blue, size: 20),
+                          Text("📅 Bill Date: $dateFormatted", style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const Icon(Icons.calendar_month, color: Color(0xFF0284C7), size: 20),
                         ],
                       ),
                     ),
@@ -672,7 +674,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white),
                 onPressed: () {
                   Navigator.pop(ctx);
                   String dateStr = dateFormatted;
@@ -707,7 +709,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                     _sendWhatsApp(item['parentMobile'], msg);
                   }
                 },
-                child: const Text("Generate & Send Bill", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text("Generate & Send Bill", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -716,47 +718,46 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // RENTER & HOSTEL: 3 OPTIONS (ELECTRICITY / ROOM RENT / COMBINED)
   void _showRenterOrHostelBillOptionDialog(Map<String, dynamic> item) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text("⚡ Bill Options for ${item['name']} (${item['pType']})", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text("⚡ Bill Options for ${item['name']}", style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
             const SizedBox(height: 14),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0288D1), padding: const EdgeInsets.symmetric(vertical: 12)),
-              icon: const Icon(Icons.electric_bolt, color: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              icon: const Icon(Icons.electric_bolt),
               onPressed: () {
                 Navigator.pop(ctx);
                 _openElectricityCalculationDialog(item, isCombined: false);
               },
-              label: const Text("1. Sirf Electricity Bill (Alag)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: const Text("1. Sirf Electricity Bill (Alag)", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), padding: const EdgeInsets.symmetric(vertical: 12)),
-              icon: const Icon(Icons.house, color: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              icon: const Icon(Icons.house_rounded),
               onPressed: () {
                 Navigator.pop(ctx);
                 _openRentOnlyBill(item);
               },
-              label: Text(item['pType'] == 'Hostel' ? "2. Sirf Hostel Rent Bill (Alag)" : "2. Sirf Room Rent Bill (Alag)", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: Text(item['pType'] == 'Hostel' ? "2. Sirf Hostel Rent Bill (Alag)" : "2. Sirf Room Rent Bill (Alag)", style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 10),
             ElevatedButton.icon(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800, padding: const EdgeInsets.symmetric(vertical: 12)),
-              icon: const Icon(Icons.receipt_long, color: Colors.white),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+              icon: const Icon(Icons.receipt_long_rounded),
               onPressed: () {
                 Navigator.pop(ctx);
                 _openElectricityCalculationDialog(item, isCombined: true);
               },
-              label: Text(item['pType'] == 'Hostel' ? "3. Hostel Rent + Electricity (Combined)" : "3. Room Rent + Electricity (Combined)", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              label: Text(item['pType'] == 'Hostel' ? "3. Hostel Rent + Electricity (Combined)" : "3. Room Rent + Electricity (Combined)", style: const TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -764,7 +765,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // RENTER / HOSTEL: ROOM RENT ONLY BILL
   void _openRentOnlyBill(Map<String, dynamic> item) {
     DateTime billDate = DateTime.now();
     double rent = (item['rent'] as num).toDouble();
@@ -782,7 +782,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           String billTitle = item['pType'] == 'Hostel' ? "Hostel Rent" : "Room Rent";
 
           return AlertDialog(
-            title: Text("🏠 $billTitle Bill (${item['name']})"),
+            title: Text("🏠 $billTitle Bill (${item['name']})", style: const TextStyle(fontWeight: FontWeight.bold)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -790,18 +790,18 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(6)),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFFECFDF5), borderRadius: BorderRadius.circular(12)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text("Monthly $billTitle: ₹$rent", style: const TextStyle(fontWeight: FontWeight.w600)),
                         if (backDue > 0)
-                          Text("+ Pichhla Rent Due: ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                          Text("+ Pichhla Rent Due: ₹$backDue", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE11D48))),
                         if (advanceUsed > 0)
-                          Text("- Advance Adjusted: ₹$advanceUsed", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade800)),
-                        const Divider(height: 10),
-                        Text("NET TOTAL PAYABLE: ₹$netPayable", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
+                          Text("- Advance Adjusted: ₹$advanceUsed", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
+                        const Divider(height: 12),
+                        Text("NET TOTAL PAYABLE: ₹$netPayable", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF065F46))),
                       ],
                     ),
                   ),
@@ -812,13 +812,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       if (p != null) setDialogState(() => billDate = p);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("📅 Rent Bill Date: $dateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
-                          const Icon(Icons.calendar_month, color: Colors.green, size: 20),
+                          Text("📅 Rent Bill Date: $dateFormatted", style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const Icon(Icons.calendar_month, color: Color(0xFF0F766E), size: 20),
                         ],
                       ),
                     ),
@@ -829,7 +829,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
                 onPressed: () {
                   Navigator.pop(ctx);
                   String dateStr = dateFormatted;
@@ -861,7 +861,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   _saveRentersToStorage();
                   _sendWhatsApp(phone, msg);
                 },
-                child: const Text("Generate & Send Rent Bill", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text("Generate & Send Rent Bill", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -870,7 +870,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // RENTER / HOSTEL: ELECTRICITY OR COMBINED BILL
   void _openElectricityCalculationDialog(Map<String, dynamic> item, {required bool isCombined}) {
     final currentReadingCtrl = TextEditingController();
     final rateCtrl = TextEditingController(text: defaultUnitRateCtrl.text.isNotEmpty ? defaultUnitRateCtrl.text : '8');
@@ -889,7 +888,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           String categoryLabel = item['pType'] == 'Hostel' ? 'Hostel Rent' : 'Room Rent';
 
           return AlertDialog(
-            title: Text(isCombined ? "📋 Combined Bill (${item['name']})" : "⚡ Electricity Bill (${item['name']})"),
+            title: Text(isCombined ? "📋 Combined Bill (${item['name']})" : "⚡ Electricity Bill (${item['name']})", style: const TextStyle(fontWeight: FontWeight.bold)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -897,16 +896,16 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(12)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("📌 Purani Reading: $startUnits Units", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                        Text("📌 Purani Reading: $startUnits Units", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
                         if (isCombined)
-                          Text("🏠 $categoryLabel: ₹${item['rent']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                          Text("🏠 $categoryLabel: ₹${item['rent']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
                         if (backDue > 0)
-                          Text("+ Pichhla Baki (Due): ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                          Text("+ Pichhla Baki (Due): ₹$backDue", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE11D48))),
                       ],
                     ),
                   ),
@@ -917,13 +916,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       if (p != null) setDialogState(() => customElecDate = p);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("📅 Bill Date: $elecDateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
-                          const Icon(Icons.calendar_month, color: Colors.blue, size: 20),
+                          Text("📅 Bill Date: $elecDateFormatted", style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const Icon(Icons.calendar_month, color: Color(0xFF0284C7), size: 20),
                         ],
                       ),
                     ),
@@ -947,7 +946,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0288D1)),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7), foregroundColor: Colors.white),
                 onPressed: () {
                   double endUnits = double.tryParse(currentReadingCtrl.text) ?? 0.0;
                   if (endUnits < startUnits) {
@@ -1001,7 +1000,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   _saveRentersToStorage();
                   _sendWhatsApp(phone, msg);
                 },
-                child: const Text("Calculate & Send WhatsApp", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text("Calculate & Send WhatsApp", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -1010,7 +1009,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // PAYMENT RECORD DIALOG
   void _openPaymentRecordDialog(Map<String, dynamic> item, Map<String, dynamic> billRecord) {
     double total = (billRecord['totalPayable'] as num).toDouble();
     double currentPaid = (billRecord['paidAmount'] as num?)?.toDouble() ?? 0.0;
@@ -1027,7 +1025,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           String pDateFormatted = "${paymentDate.year}-${paymentDate.month.toString().padLeft(2, '0')}-${paymentDate.day.toString().padLeft(2, '0')}";
 
           return AlertDialog(
-            title: Text("💳 Payment Record: ${item['name']}"),
+            title: Text("💳 Payment: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1035,14 +1033,14 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFFEFF6FF), borderRadius: BorderRadius.circular(12)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("📌 Bill Type: ${billRecord['type']}", style: const TextStyle(fontWeight: FontWeight.bold)),
-                        Text("📅 Bill Date: ${billRecord['date']}"),
-                        Text("💰 Bill Amount: ₹$total", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                        Text("📌 Type: ${billRecord['type']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text("📅 Date: ${billRecord['date']}"),
+                        Text("💰 Amount: ₹$total", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
                       ],
                     ),
                   ),
@@ -1053,13 +1051,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       if (p != null) setDialogState(() => paymentDate = p);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("📅 Bill Paid Date: $pDateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
-                          const Icon(Icons.calendar_month, color: Colors.green, size: 20),
+                          Text("📅 Paid Date: $pDateFormatted", style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const Icon(Icons.calendar_month, color: Color(0xFF0F766E), size: 20),
                         ],
                       ),
                     ),
@@ -1075,11 +1073,11 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   const SizedBox(height: 12),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: enteredPaid >= total ? Colors.green.shade100 : (enteredPaid > 0 ? Colors.orange.shade100 : Colors.red.shade100),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: enteredPaid >= total ? Colors.green : (enteredPaid > 0 ? Colors.orange.shade800 : Colors.red)),
+                      color: enteredPaid >= total ? const Color(0xFFECFDF5) : (enteredPaid > 0 ? const Color(0xFFFFFBEB) : const Color(0xFFFFF1F2)),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: enteredPaid >= total ? const Color(0xFF10B981) : (enteredPaid > 0 ? const Color(0xFFF59E0B) : const Color(0xFFF43F5E))),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1090,10 +1088,10 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                               : (enteredPaid == total && total > 0
                                   ? "✅ Status: ALL PAID (Due: ₹0)"
                                   : (enteredPaid > 0 ? "⚠️ Status: PARTIAL DUE (Balance: ₹${remainingDue.toStringAsFixed(1)})" : "❌ Status: UNPAID (Due: ₹$total)")),
-                          style: TextStyle(fontWeight: FontWeight.bold, color: enteredPaid >= total ? Colors.green.shade900 : (enteredPaid > 0 ? Colors.orange.shade900 : Colors.red.shade900)),
+                          style: TextStyle(fontWeight: FontWeight.bold, color: enteredPaid >= total ? const Color(0xFF047857) : (enteredPaid > 0 ? const Color(0xFFB45309) : const Color(0xFFBE123C))),
                         ),
                         if (extraPaid > 0)
-                          Text("💎 Extra ₹$extraPaid Advance Wallet me add hoga!", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
+                          Text("💎 Extra ₹$extraPaid Advance Wallet me add hoga!", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF047857))),
                       ],
                     ),
                   ),
@@ -1103,7 +1101,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             actions: [
               TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00897B)),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
                 onPressed: () {
                   Navigator.pop(ctx);
                   double finalPaid = double.tryParse(paidCtrl.text) ?? 0.0;
@@ -1125,7 +1123,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   String receiptMsg = "*🧾 PAYMENT ACKNOWLEDGEMENT / RECEIPT*\n--------------------\nName: ${item['name']}\nPayment Date: $pDateFormatted\nTotal Bill: ₹$total\n*Amount Paid: ₹$finalPaid*\n*Remaining Due: ₹${(total - finalPaid).clamp(0, double.infinity)}*$extraNote\nStatus: $newStatus\n--------------------\nReceived By: $oName\nDhanyawad!";
                   _sendWhatsApp(item['mobile'], receiptMsg);
                 },
-                child: const Text("Save & Send Receipt", style: TextStyle(color: Colors.white)),
+                child: const Text("Save & Send Receipt", style: TextStyle(fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -1134,7 +1132,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // RESEND BILL DIALOG
   void _openResendChoiceDialog(Map<String, dynamic> item, Map<String, dynamic> billRecord) {
     bool isStudent = (item['pType'] == 'Student');
     String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
@@ -1174,7 +1171,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (c, setDialogState) => AlertDialog(
-          title: const Text("📲 Send Bill on WhatsApp"),
+          title: const Text("📲 Send Bill on WhatsApp", style: TextStyle(fontWeight: FontWeight.bold)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1198,7 +1195,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366)),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366), foregroundColor: Colors.white),
               onPressed: () {
                 Navigator.pop(ctx);
                 if (resendTarget == 'student' || resendTarget == 'both') _sendWhatsApp(item['mobile'], msg);
@@ -1206,7 +1203,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   _sendWhatsApp(item['parentMobile'], msg);
                 }
               },
-              child: const Text("Send WhatsApp", style: TextStyle(color: Colors.white)),
+              child: const Text("Send WhatsApp", style: TextStyle(fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -1221,7 +1218,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
         builder: (ctx, setDialogState) {
           List history = item['history'] ?? [];
           return AlertDialog(
-            title: Text("📜 Bill History: ${item['name']}"),
+            title: Text("📜 Bill History: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
             content: SizedBox(
               width: double.maxFinite,
               child: history.isEmpty
@@ -1240,42 +1237,43 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                         String statusBadgeText;
 
                         if (paid >= total && total > 0) {
-                          cardBgColor = Colors.green.shade50;
-                          statusBadgeColor = Colors.green;
+                          cardBgColor = const Color(0xFFECFDF5);
+                          statusBadgeColor = const Color(0xFF10B981);
                           statusBadgeText = "PAID ✅";
                         } else if (paid > 0 && paid < total) {
-                          cardBgColor = Colors.orange.shade50;
-                          statusBadgeColor = Colors.orange.shade800;
+                          cardBgColor = const Color(0xFFFFFBEB);
+                          statusBadgeColor = const Color(0xFFF59E0B);
                           statusBadgeText = "PARTIAL: ₹${remaining.toStringAsFixed(0)} ⚠️";
                         } else if (total == 0 && (h['status'] == 'Paid')) {
-                          cardBgColor = Colors.green.shade50;
-                          statusBadgeColor = Colors.green;
+                          cardBgColor = const Color(0xFFECFDF5);
+                          statusBadgeColor = const Color(0xFF10B981);
                           statusBadgeText = "PAID (Advance) ✅";
                         } else {
-                          cardBgColor = Colors.red.shade50;
-                          statusBadgeColor = Colors.red;
+                          cardBgColor = const Color(0xFFFFF1F2);
+                          statusBadgeColor = const Color(0xFFF43F5E);
                           statusBadgeText = "UNPAID ❌";
                         }
 
                         return Card(
                           color: cardBgColor,
-                          elevation: 1.5,
+                          elevation: 0,
                           margin: const EdgeInsets.symmetric(vertical: 6),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: statusBadgeColor, width: 1.5)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: statusBadgeColor.withOpacity(0.5), width: 1.5)),
                           child: InkWell(
+                            borderRadius: BorderRadius.circular(12),
                             onTap: () => _openPaymentRecordDialog(item, h),
                             child: Padding(
-                              padding: const EdgeInsets.all(10),
+                              padding: const EdgeInsets.all(12),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text(h['type'] ?? 'Bill', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      Text(h['type'] ?? 'Bill', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                        decoration: BoxDecoration(color: statusBadgeColor, borderRadius: BorderRadius.circular(10)),
+                                        decoration: BoxDecoration(color: statusBadgeColor, borderRadius: BorderRadius.circular(8)),
                                         child: Text(statusBadgeText, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                       ),
                                     ],
@@ -1284,36 +1282,36 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text("📅 Generated: ${h['date']}", style: const TextStyle(fontSize: 12, color: Colors.black87)),
-                                      Text("Total Bill: ₹$total", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue)),
+                                      Text("📅 ${h['date']}", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                                      Text("Total: ₹$total", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1E40AF))),
                                     ],
                                   ),
                                   const SizedBox(height: 4),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Text("📅 Paid Date: ${h['paymentDate'] ?? '-'}", style: const TextStyle(fontSize: 12, color: Colors.black87)),
-                                      Text("Paid Amount: ₹$paid", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
+                                      Text("Paid Date: ${h['paymentDate'] ?? '-'}", style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                                      Text("Paid: ₹$paid", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF047857))),
                                     ],
                                   ),
                                   if (h['advanceUsed'] != null && (h['advanceUsed'] as num) > 0)
-                                    Text("💎 Advance Adjusted: ₹${h['advanceUsed']}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
+                                    Text("💎 Advance Adjusted: ₹${h['advanceUsed']}", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
                                   if (remaining > 0 && paid > 0)
-                                    Text("⚠️ Remaining Due: ₹${remaining.toStringAsFixed(1)}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.deepOrange.shade900)),
-                                  const SizedBox(height: 8),
+                                    Text("⚠️ Remaining Due: ₹${remaining.toStringAsFixed(1)}", style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFFBE123C))),
+                                  const SizedBox(height: 10),
                                   Row(
                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                     children: [
                                       OutlinedButton.icon(
-                                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
+                                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
                                         onPressed: () => _openResendChoiceDialog(item, h),
-                                        icon: const Icon(Icons.send, size: 12, color: Color(0xFF25D366)),
+                                        icon: const Icon(Icons.send_rounded, size: 12, color: Color(0xFF25D366)),
                                         label: const Text("Send Bill 🔁", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
                                       ),
                                       ElevatedButton(
-                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade800, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
+                                        style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
                                         onPressed: () => _openPaymentRecordDialog(item, h),
-                                        child: const Text("Update Pay 💳", style: TextStyle(fontSize: 10)),
+                                        child: const Text("Update Pay 💳", style: TextStyle(fontSize: 11)),
                                       ),
                                     ],
                                   ),
@@ -1344,7 +1342,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (c, setDialogState) => AlertDialog(
-          title: const Text("💸 Add Property Expense"),
+          title: const Text("💸 Add Property Expense", style: TextStyle(fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -1371,6 +1369,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white),
               onPressed: () {
                 double amt = double.tryParse(amountCtrl.text) ?? 0.0;
                 if (amt <= 0) return;
@@ -1403,14 +1402,14 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (c, setDialogState) => AlertDialog(
-          title: const Text("🛠️ Log Tenant Complaint"),
+          title: const Text("🛠️ Log Member Issue", style: TextStyle(fontWeight: FontWeight.bold)),
           content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(controller: roomCtrl, decoration: const InputDecoration(labelText: "Room / Member Name", border: OutlineInputBorder())),
                 const SizedBox(height: 10),
-                TextField(controller: titleCtrl, maxLines: 2, decoration: const InputDecoration(labelText: "Issue (e.g. Fan not working, Water leak)", border: OutlineInputBorder())),
+                TextField(controller: titleCtrl, maxLines: 2, decoration: const InputDecoration(labelText: "Issue Details (e.g. Fan problem, Water leak)", border: OutlineInputBorder())),
                 const SizedBox(height: 10),
                 DropdownButtonFormField<String>(
                   value: priority,
@@ -1427,6 +1426,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
             ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
               onPressed: () {
                 if (titleCtrl.text.trim().isEmpty) return;
                 setState(() {
@@ -1460,7 +1460,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     final output = await getTemporaryDirectory();
     final file = File("${output.path}/rent_manager_backup.json");
     await file.writeAsString(json.encode(fullData));
-    await Share.shareXFiles([XFile(file.path)], text: 'Rent Manager Complete Data Backup (.JSON)');
+    await Share.shareXFiles([XFile(file.path)], text: 'Rent Manager Data Backup (.JSON)');
   }
 
   void _importJsonBackup() async {
@@ -1491,29 +1491,61 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(
-          backgroundColor: const Color(0xFF01579B),
-          foregroundColor: Colors.white,
-          title: Text(propertyNameCtrl.text.isNotEmpty ? propertyNameCtrl.text : 'RentManager Pro', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.account_circle, size: 28),
-              onPressed: _openOwnerProfileSheet,
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(115),
+          child: Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF0F766E)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              boxShadow: [
+                BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4)),
+              ],
             ),
-          ],
-          bottom: TabBar(
-            controller: _tabController,
-            isScrollable: true,
-            indicatorColor: Colors.amber,
-            indicatorWeight: 3,
-            labelColor: Colors.white,
-            unselectedLabelColor: Colors.white70,
-            tabs: const [
-              Tab(icon: Icon(Icons.dashboard), text: "Dashboard"),
-              Tab(icon: Icon(Icons.person_add), text: "+ New Entry"),
-              Tab(icon: Icon(Icons.folder_shared), text: "Total Members (Data)"),
-              Tab(icon: Icon(Icons.account_balance_wallet), text: "Expenses & Issues"),
-            ],
+            child: AppBar(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              title: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(8)),
+                    child: const Icon(Icons.domain_rounded, color: Colors.amberAccent, size: 20),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      propertyNameCtrl.text.isNotEmpty ? propertyNameCtrl.text : 'RentManager Pro',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 0.3),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.account_circle, color: Colors.white, size: 28),
+                  onPressed: _openOwnerProfileSheet,
+                ),
+              ],
+              bottom: TabBar(
+                controller: _tabController,
+                isScrollable: true,
+                indicatorColor: Colors.amberAccent,
+                indicatorWeight: 3,
+                labelColor: Colors.amberAccent,
+                unselectedLabelColor: Colors.white70,
+                labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                tabs: const [
+                  Tab(icon: Icon(Icons.dashboard_rounded, size: 18), text: "Dashboard"),
+                  Tab(icon: Icon(Icons.person_add_alt_1_rounded, size: 18), text: "+ New Entry"),
+                  Tab(icon: Icon(Icons.folder_shared_rounded, size: 18), text: "Total Members (Data)"),
+                  Tab(icon: Icon(Icons.account_balance_wallet_rounded, size: 18), text: "Expenses & Issues"),
+                ],
+              ),
+            ),
           ),
         ),
         body: TabBarView(
@@ -1529,7 +1561,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  // 1. EXECUTIVE DASHBOARD VIEW
+  // 1. ULTRA MODERN DASHBOARD VIEW
   Widget _buildDashboardView() {
     double totalCollected = 0.0;
     double totalPendingDue = 0.0;
@@ -1553,84 +1585,187 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     double netProfit = totalCollected - totalExpenseAmt;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          // Floating Action Buttons
           Row(
             children: [
               Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
-                  onPressed: _sendBulkReminders,
-                  icon: const Icon(Icons.notifications_active),
-                  label: const Text("📢 Bulk Reminders", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFF059669), Color(0xFF10B981)]),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(color: const Color(0xFF10B981).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                  ),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: _sendBulkReminders,
+                    icon: const Icon(Icons.notifications_active_rounded, size: 18),
+                    label: const Text("📢 Bulk Reminders", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 10),
               Expanded(
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0288D1), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
-                  onPressed: () => _tabController.animateTo(1), // Redirect to + New Entry tab
-                  icon: const Icon(Icons.person_add),
-                  label: const Text("+ Add Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(colors: [Color(0xFF0F766E), Color(0xFF14B8A6)]),
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [BoxShadow(color: const Color(0xFF14B8A6).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                  ),
+                  child: ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => _tabController.animateTo(1),
+                    icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+                    label: const Text("+ Add Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
 
+          // Modern 4 Metrics Grid
           Row(
             children: [
-              Expanded(child: _buildMetricCard("💰 Total Collected", "₹${totalCollected.toStringAsFixed(0)}", Colors.green.shade800, Colors.green.shade50)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildMetricCard("⚠️ Market Due (Baki)", "₹${totalPendingDue.toStringAsFixed(0)}", Colors.red.shade800, Colors.red.shade50)),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Expanded(child: _buildMetricCard("👥 Total Members", "$activeResidents Active", Colors.blue.shade900, Colors.blue.shade50)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildMetricCard("📈 Net Profit", "₹${netProfit.toStringAsFixed(0)}", Colors.indigo.shade900, Colors.indigo.shade50)),
-            ],
-          ),
-          const SizedBox(height: 14),
-
-          Card(
-            color: Colors.indigo.shade50,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text("🔒 Total Security Deposit Held:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
-                  Text("₹${totalSecurity.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo)),
-                ],
+              Expanded(
+                child: _buildGlassMetricCard(
+                  title: "TOTAL COLLECTED",
+                  value: "₹${totalCollected.toStringAsFixed(0)}",
+                  icon: Icons.account_balance_wallet_rounded,
+                  iconColor: const Color(0xFF059669),
+                  gradientColors: [const Color(0xFFECFDF5), const Color(0xFFD1FAE5)],
+                  borderColor: const Color(0xFF10B981).withOpacity(0.4),
+                ),
               ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildGlassMetricCard(
+                  title: "MARKET DUE (BAKI)",
+                  value: "₹${totalPendingDue.toStringAsFixed(0)}",
+                  icon: Icons.error_outline_rounded,
+                  iconColor: const Color(0xFFE11D48),
+                  gradientColors: [const Color(0xFFFFF1F2), const Color(0xFFFFE4E6)],
+                  borderColor: const Color(0xFFF43F5E).withOpacity(0.4),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: _buildGlassMetricCard(
+                  title: "TOTAL MEMBERS",
+                  value: "$activeResidents Active",
+                  icon: Icons.people_alt_rounded,
+                  iconColor: const Color(0xFF0284C7),
+                  gradientColors: [const Color(0xFFF0F9FF), const Color(0xFFE0F2FE)],
+                  borderColor: const Color(0xFF38BDF8).withOpacity(0.4),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildGlassMetricCard(
+                  title: "NET PROFIT",
+                  value: "₹${netProfit.toStringAsFixed(0)}",
+                  icon: Icons.trending_up_rounded,
+                  iconColor: const Color(0xFF7C3AED),
+                  gradientColors: [const Color(0xFFF5F3FF), const Color(0xFFEDE9FE)],
+                  borderColor: const Color(0xFFA78BFA).withOpacity(0.4),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Security Deposit Banner
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF1E293B), Color(0xFF334155)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 10, offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.amber.withOpacity(0.2), shape: BoxShape.circle),
+                      child: const Icon(Icons.shield_rounded, color: Colors.amberAccent, size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text("Security Deposit Held", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
+                  ],
+                ),
+                Text("₹${totalSecurity.toStringAsFixed(0)}", style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 20),
 
-          const Text("🔔 Rent/Fee Due in Next 3 Days", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-          const SizedBox(height: 6),
+          // Upcoming Dues
+          const Text("🔔 Rent/Fee Due in Next 3 Days", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1E293B))),
+          const SizedBox(height: 8),
           _buildUpcomingDuesList(),
         ],
       ),
     );
   }
 
-  Widget _buildMetricCard(String title, String value, Color textCol, Color bgCol) {
+  Widget _buildGlassMetricCard({
+    required String title,
+    required String value,
+    required IconData icon,
+    required Color iconColor,
+    required List<Color> gradientColors,
+    required Color borderColor,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-      decoration: BoxDecoration(color: bgCol, borderRadius: BorderRadius.circular(10), border: Border.all(color: textCol.withOpacity(0.3))),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: gradientColors, begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: borderColor, width: 1.2),
+        boxShadow: [
+          BoxShadow(color: iconColor.withOpacity(0.06), blurRadius: 8, offset: const Offset(0, 3)),
+        ],
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textCol)),
-          const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textCol)),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: iconColor, letterSpacing: 0.5)),
+              Icon(icon, size: 18, color: iconColor),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: iconColor)),
         ],
       ),
     );
@@ -1650,10 +1785,15 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     }).toList();
 
     if (upcoming.isEmpty) {
-      return Card(
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Text("Agle 3 dino me kisi ka rent/fee due nahi hai.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
+        child: Row(
+          children: [
+            const Icon(Icons.check_circle_outline_rounded, color: Color(0xFF10B981), size: 24),
+            const SizedBox(width: 10),
+            Text("Sabhi payments time par hain! Agle 3 din me koi due nahi.", style: TextStyle(color: Colors.grey.shade700, fontSize: 12, fontWeight: FontWeight.w500)),
+          ],
         ),
       );
     }
@@ -1665,17 +1805,20 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       itemBuilder: (c, idx) {
         final item = upcoming[idx];
         String icon = item['pType'] == 'Student' ? "🎓" : (item['pType'] == 'Hostel' ? "🏢" : "🏠");
-        String roomLabel = item['pType'] == 'Student' ? "Roll No" : "Room/Bed";
+        String roomLabel = item['pType'] == 'Student' ? "Roll No" : "Room";
 
         return Card(
           margin: const EdgeInsets.symmetric(vertical: 4),
+          elevation: 0,
+          color: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.amber.shade200, width: 1.2)),
           child: ListTile(
             dense: true,
-            leading: Text(icon, style: const TextStyle(fontSize: 20)),
+            leading: CircleAvatar(backgroundColor: const Color(0xFFF8FAFC), child: Text(icon, style: const TextStyle(fontSize: 18))),
             title: Text("${item['name']} ($roomLabel: ${item['roomNo'] ?? 'N/A'})", style: const TextStyle(fontWeight: FontWeight.bold)),
-            subtitle: Text("Due Date: ${item['nextDueDate']} | Fee/Rent: ₹${item['rent']}"),
+            subtitle: Text("Due: ${item['nextDueDate']} | ₹${item['rent']}", style: const TextStyle(fontWeight: FontWeight.w600, color: Color(0xFFD97706))),
             trailing: IconButton(
-              icon: const Icon(Icons.send, color: Color(0xFF25D366)),
+              icon: const Icon(Icons.send_rounded, color: Color(0xFF25D366)),
               onPressed: () {
                 String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
                 String msg = "*🔔 RENT/FEE DUE REMINDER*\n--------------------\nName: ${item['name']}\n$roomLabel: ${item['roomNo'] ?? 'N/A'}\nDue Date: ${item['nextDueDate']}\nAmount: ₹${item['rent']}\nOwner: $oName";
@@ -1705,31 +1848,31 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
 
     return Column(
       children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
+        Container(
+          color: Colors.white,
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              FilterChip(label: Text("All (${renters.length})"), selected: listFilter == 'all', onSelected: (_) => setState(() => listFilter = 'all')),
-              const SizedBox(width: 6),
-              FilterChip(label: const Text("🎓 Students"), selected: listFilter == 'Student', onSelected: (_) => setState(() => listFilter = 'Student')),
-              const SizedBox(width: 6),
-              FilterChip(label: const Text("🏢 Hostel"), selected: listFilter == 'Hostel', onSelected: (_) => setState(() => listFilter = 'Hostel')),
-              const SizedBox(width: 6),
-              FilterChip(label: const Text("🏠 Renters / Family"), selected: listFilter == 'Renter', onSelected: (_) => setState(() => listFilter = 'Renter')),
-              const SizedBox(width: 6),
-              FilterChip(
-                label: Text("🚪 Left / Closed (${renters.where((r) => r['isClosed'] == true).length})"),
-                selected: listFilter == 'Closed',
-                onSelected: (_) => setState(() => listFilter = 'Closed'),
-              ),
-            ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: [
+                _buildFilterChip("All (${renters.length})", 'all'),
+                const SizedBox(width: 6),
+                _buildFilterChip("🎓 Students", 'Student'),
+                const SizedBox(width: 6),
+                _buildFilterChip("🏢 Hostel", 'Hostel'),
+                const SizedBox(width: 6),
+                _buildFilterChip("🏠 Renters", 'Renter'),
+                const SizedBox(width: 6),
+                _buildFilterChip("🚪 Closed (${renters.where((r) => r['isClosed'] == true).length})", 'Closed'),
+              ],
+            ),
           ),
         ),
         Expanded(
           child: filtered.isEmpty
-              ? const Center(child: Text("Koi record nahi mila.", style: TextStyle(color: Colors.grey)))
+              ? Center(child: Text("Koi record nahi mila.", style: TextStyle(color: Colors.grey.shade500)))
               : ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
                   itemCount: filtered.length,
                   itemBuilder: (ctx, i) {
                     final r = filtered[i];
@@ -1742,31 +1885,34 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                     bool isFullyPaid = (currentDue == 0 && hasHistory);
                     bool isPartial = (currentDue > 0 && hasHistory);
 
-                    Color statusColor = Colors.red.shade400;
+                    Color statusColor = const Color(0xFFF43F5E);
                     String statusText = "UNPAID (Due: ₹$currentDue)";
                     if (isClosed) {
-                      statusColor = Colors.grey.shade700;
-                      statusText = "LEFT / CLOSED 🚫 (${r['closedDate'] ?? ''})";
+                      statusColor = const Color(0xFF64748B);
+                      statusText = "LEFT / CLOSED 🚫";
                     } else if (isFullyPaid) {
-                      statusColor = Colors.green;
+                      statusColor = const Color(0xFF10B981);
                       statusText = "ALL PAID ✅";
                     } else if (isPartial) {
-                      statusColor = Colors.orange.shade800;
+                      statusColor = const Color(0xFFF59E0B);
                       statusText = "DUE: ₹$currentDue";
                     }
 
                     String categoryIcon = isStudent ? "🎓" : (isHostel ? "🏢" : "🏠");
                     String roomDisplay = isStudent
-                        ? (r['roomNo'] != null && r['roomNo'].toString().isNotEmpty ? '(Roll No: ' + r['roomNo'] + ')' : '')
+                        ? (r['roomNo'] != null && r['roomNo'].toString().isNotEmpty ? '(Roll: ' + r['roomNo'] + ')' : '')
                         : (r['roomNo'] != null && r['roomNo'].toString().isNotEmpty ? '(Room: ' + r['roomNo'] + ')' : '');
 
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      elevation: 2,
-                      color: isClosed ? Colors.grey.shade100 : Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: statusColor, width: isClosed ? 1.5 : 2)),
+                      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                      elevation: 0,
+                      color: isClosed ? const Color(0xFFF8FAFC) : Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        side: BorderSide(color: statusColor.withOpacity(0.5), width: isClosed ? 1 : 1.5),
+                      ),
                       child: Padding(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(14),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -1776,21 +1922,21 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                                 Row(
                                   children: [
                                     Text(categoryIcon, style: const TextStyle(fontSize: 18)),
-                                    const SizedBox(width: 6),
+                                    const SizedBox(width: 8),
                                     Text("${r['name']} $roomDisplay", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, decoration: isClosed ? TextDecoration.lineThrough : null)),
                                   ],
                                 ),
                                 Row(
                                   children: [
                                     Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                      decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(12)),
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(8)),
                                       child: Text(statusText, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
                                     ),
                                     if (!isClosed)
-                                      IconButton(icon: const Icon(Icons.edit, color: Colors.blue, size: 20), onPressed: () => _showEditDialog(r)),
+                                      IconButton(icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF0F766E), size: 22), onPressed: () => _showEditDialog(r)),
                                     IconButton(
-                                      icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
                                       onPressed: () {
                                         setState(() => renters.removeWhere((item) => item['id'] == r['id']));
                                         _saveRentersToStorage();
@@ -1800,17 +1946,23 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                                 ),
                               ],
                             ),
-                            Text("📱 Phone: ${r['mobile']} ${r['parentMobile'] != '' && r['parentMobile'] != null ? '\n👨‍👩‍👦 Parents: ' + r['parentMobile'] : ''}", style: const TextStyle(fontSize: 13)),
+                            Text("📱 Phone: ${r['mobile']} ${r['parentMobile'] != '' && r['parentMobile'] != null ? '\n👨‍👩‍👦 Parents: ' + r['parentMobile'] : ''}", style: const TextStyle(fontSize: 13, color: Colors.black87)),
                             if (r['address'] != null && r['address'].toString().isNotEmpty)
-                              Text("📍 Addr: ${r['address']}", style: const TextStyle(fontSize: 12, color: Colors.black87)),
-                            Text("🗓 Joining Date: ${r['entryDate']} ${!isClosed ? '| Due Date: ' + r['nextDueDate'].toString() : ''}", style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                              Text("📍 Addr: ${r['address']}", style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                            Text("🗓 Joining: ${r['entryDate']} ${!isClosed ? '| Next Due: ' + r['nextDueDate'].toString() : ''}", style: const TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500)),
                             if (!isStudent && r['elecDate'] != null)
-                              Text("⚡ Elec Date: ${r['elecDate']}", style: const TextStyle(fontSize: 12, color: Colors.deepOrange)),
-                            Text("💰 Fixed ${isStudent ? 'Fee' : 'Rent'}: ₹${r['rent']}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                            if (securityDeposit > 0)
-                              Text("🔒 Security Deposit: ₹$securityDeposit", style: const TextStyle(fontSize: 12, color: Colors.indigo, fontWeight: FontWeight.bold)),
+                              Text("⚡ Elec Date: ${r['elecDate']}", style: const TextStyle(fontSize: 12, color: Color(0xFFD97706), fontWeight: FontWeight.w600)),
+                            const Divider(height: 12),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text("Fixed ${isStudent ? 'Fee' : 'Rent'}: ₹${r['rent']}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                                if (securityDeposit > 0)
+                                  Text("🔒 Security: ₹$securityDeposit", style: const TextStyle(fontSize: 12, color: Color(0xFF0F766E), fontWeight: FontWeight.bold)),
+                              ],
+                            ),
                             if (!isStudent)
-                              Text("⚡ Current Base Reading: ${r['prevReading']} Units", style: const TextStyle(fontSize: 12, color: Colors.brown, fontWeight: FontWeight.bold)),
+                              Text("⚡ Current Reading: ${r['prevReading']} Units", style: const TextStyle(fontSize: 12, color: Colors.brown, fontWeight: FontWeight.w600)),
                             const SizedBox(height: 10),
                             Wrap(
                               spacing: 6,
@@ -1820,33 +1972,35 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                                   if (isStudent) ...[
                                     ElevatedButton.icon(
                                       onPressed: () => _openStudentGenerateBillDialog(r),
-                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800),
-                                      icon: const Icon(Icons.receipt_long, color: Colors.white, size: 14),
-                                      label: const Text("⚡ Generate Monthly Bill", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
+                                      icon: const Icon(Icons.receipt_long_rounded, size: 14),
+                                      label: const Text("⚡ Bill", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                     ),
                                   ] else ...[
                                     ElevatedButton.icon(
                                       onPressed: () => _showRenterOrHostelBillOptionDialog(r),
-                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade800),
-                                      icon: const Icon(Icons.receipt_long, color: Colors.white, size: 14),
-                                      label: const Text("⚡ Generate Monthly Bill", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                      style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4)),
+                                      icon: const Icon(Icons.receipt_long_rounded, size: 14),
+                                      label: const Text("⚡ Bill", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                     ),
                                   ],
                                   OutlinedButton.icon(
                                     onPressed: () => _sharePoliceVerificationForm(r),
-                                    icon: const Icon(Icons.description, size: 14, color: Colors.indigo),
-                                    label: const Text("Doc / Profile 📋", style: TextStyle(fontSize: 11)),
+                                    style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                                    icon: const Icon(Icons.description_outlined, size: 14, color: Color(0xFF0F766E)),
+                                    label: const Text("Doc / ID", style: TextStyle(fontSize: 11, color: Color(0xFF0F766E))),
                                   ),
                                   OutlinedButton.icon(
                                     onPressed: () => _openCloseAccountDialog(r),
-                                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade800, side: BorderSide(color: Colors.red.shade400)),
-                                    icon: const Icon(Icons.exit_to_app, size: 14),
-                                    label: const Text("Close Account 🚪", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                    style: OutlinedButton.styleFrom(foregroundColor: const Color(0xFFE11D48), side: BorderSide(color: Colors.red.shade300), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                                    icon: const Icon(Icons.exit_to_app_rounded, size: 14),
+                                    label: const Text("Close 🚪", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
                                   ),
                                 ],
                                 OutlinedButton.icon(
                                   onPressed: () => _showHistoryDialog(r),
-                                  icon: const Icon(Icons.payments, size: 14, color: Colors.green),
+                                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4)),
+                                  icon: const Icon(Icons.history_rounded, size: 14, color: Color(0xFF10B981)),
                                   label: Text("History (${r['history']?.length ?? 0})", style: const TextStyle(fontSize: 11)),
                                 ),
                               ],
@@ -1862,6 +2016,17 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
+  Widget _buildFilterChip(String label, String value) {
+    bool isSelected = (listFilter == value);
+    return ChoiceChip(
+      label: Text(label, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? Colors.white : Colors.black87)),
+      selected: isSelected,
+      selectedColor: const Color(0xFF0F766E),
+      backgroundColor: const Color(0xFFF1F5F9),
+      onSelected: (_) => setState(() => listFilter = value),
+    );
+  }
+
   // 3. NEW REGISTRATION FORM VIEW
   Widget _buildNewEntryForm() {
     bool isStudent = (personType == 'Student');
@@ -1870,15 +2035,18 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     String elecDateStr = "${elecStartDate.year}-${elecStartDate.month.toString().padLeft(2, '0')}-${elecStartDate.day.toString().padLeft(2, '0')}";
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       child: Card(
-        elevation: 2,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        elevation: 0,
+        color: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: Colors.grey.shade200)),
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              const Text("📝 New Resident Registration", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              const SizedBox(height: 14),
               DropdownButtonFormField<String>(
                 value: personType,
                 decoration: const InputDecoration(labelText: "Category Select Karein *", border: OutlineInputBorder()),
@@ -1922,7 +2090,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(isStudent ? "🗓 Joining Date: $rentDateStr" : "🗓 Rent Entry Date: $rentDateStr", style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500)),
-                      const Icon(Icons.calendar_month, color: Color(0xFF0288D1)),
+                      const Icon(Icons.calendar_month, color: Color(0xFF0F766E)),
                     ],
                   ),
                 ),
@@ -1977,10 +2145,17 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   onChanged: (v) => setState(() => sendToTarget = v!),
                 ),
               const SizedBox(height: 16),
-              ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0288D1), padding: const EdgeInsets.symmetric(vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                onPressed: _saveNewRegistration,
-                child: const Text("💾 Save & Send Welcome Rules", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(colors: [Color(0xFF0F766E), Color(0xFF14B8A6)]),
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [BoxShadow(color: const Color(0xFF0F766E).withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 4))],
+                ),
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(vertical: 14)),
+                  onPressed: _saveNewRegistration,
+                  child: const Text("💾 Save & Send Welcome Rules", style: TextStyle(fontSize: 16, color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
               ),
             ],
           ),
@@ -1994,16 +2169,16 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     double totalExpenseAmt = expenses.fold(0.0, (sum, item) => sum + (item['amount'] as num).toDouble());
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("💸 Total Expenses: ₹${totalExpenseAmt.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.red)),
+              Text("💸 Expenses: ₹${totalExpenseAmt.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFE11D48))),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.red.shade800, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white),
                 onPressed: _openAddExpenseDialog,
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text("Add Expense"),
@@ -2012,7 +2187,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           ),
           const SizedBox(height: 8),
           expenses.isEmpty
-              ? Card(child: Padding(padding: const EdgeInsets.all(12), child: Text("Abhi koi property expense add nahi hai.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12))))
+              ? Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: Text("Abhi koi property expense add nahi hai.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)))
               : ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -2020,18 +2195,21 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   itemBuilder: (c, idx) {
                     final exp = expenses[idx];
                     return Card(
+                      elevation: 0,
+                      color: Colors.white,
                       margin: const EdgeInsets.symmetric(vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: Colors.grey.shade200)),
                       child: ListTile(
                         dense: true,
-                        leading: const Icon(Icons.receipt, color: Colors.red),
+                        leading: const Icon(Icons.receipt_rounded, color: Color(0xFFE11D48)),
                         title: Text(exp['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text("Date: ${exp['date']} | ${exp['category']}"),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Text("₹${exp['amount']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.red)),
+                            Text("₹${exp['amount']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFFE11D48))),
                             IconButton(
-                              icon: const Icon(Icons.delete, color: Colors.grey, size: 18),
+                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.grey, size: 18),
                               onPressed: () {
                                 setState(() => expenses.removeAt(idx));
                                 _saveExpensesToStorage();
@@ -2047,18 +2225,18 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("🛠️ Tenant Issues (${complaints.where((c) => c['status'] == 'Pending').length} Open)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              Text("🛠️ Issues (${complaints.where((c) => c['status'] == 'Pending').length} Open)", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
               ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade800, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B), foregroundColor: Colors.white),
                 onPressed: _openAddComplaintDialog,
-                icon: const Icon(Icons.report_problem, size: 16),
+                icon: const Icon(Icons.report_problem_rounded, size: 16),
                 label: const Text("Log Issue"),
               ),
             ],
           ),
           const SizedBox(height: 8),
           complaints.isEmpty
-              ? Card(child: Padding(padding: const EdgeInsets.all(12), child: Text("Koi complaint ya repair issue nahi hai.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12))))
+              ? Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)), child: Text("Koi complaint ya repair issue nahi hai.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)))
               : ListView.builder(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -2067,15 +2245,17 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                     final cmp = complaints[idx];
                     bool isPending = cmp['status'] == 'Pending';
                     return Card(
-                      color: isPending ? Colors.amber.shade50 : Colors.green.shade50,
+                      elevation: 0,
+                      color: isPending ? const Color(0xFFFFFBEB) : const Color(0xFFECFDF5),
                       margin: const EdgeInsets.symmetric(vertical: 4),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: isPending ? Colors.amber.shade300 : Colors.green.shade300)),
                       child: ListTile(
                         dense: true,
-                        leading: Icon(isPending ? Icons.warning : Icons.check_circle, color: isPending ? Colors.orange.shade800 : Colors.green),
+                        leading: Icon(isPending ? Icons.warning_amber_rounded : Icons.check_circle_rounded, color: isPending ? const Color(0xFFD97706) : const Color(0xFF10B981)),
                         title: Text("${cmp['title']} (Room: ${cmp['room'] ?? 'N/A'})", style: const TextStyle(fontWeight: FontWeight.bold)),
                         subtitle: Text("Logged: ${cmp['date']} | Priority: ${cmp['priority']}"),
                         trailing: ElevatedButton(
-                          style: ElevatedButton.styleFrom(backgroundColor: isPending ? Colors.orange.shade800 : Colors.green, foregroundColor: Colors.white),
+                          style: ElevatedButton.styleFrom(backgroundColor: isPending ? const Color(0xFFD97706) : const Color(0xFF10B981), foregroundColor: Colors.white),
                           onPressed: () {
                             setState(() => cmp['status'] = isPending ? 'Resolved' : 'Pending');
                             _saveComplaintsToStorage();
@@ -2095,6 +2275,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => Padding(
           padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 16, right: 16, top: 16),
@@ -2118,7 +2299,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                         right: 0,
                         child: CircleAvatar(
                           radius: 14,
-                          backgroundColor: Colors.blue,
+                          backgroundColor: const Color(0xFF0F766E),
                           child: IconButton(
                             padding: EdgeInsets.zero,
                             icon: const Icon(Icons.camera_alt, size: 16, color: Colors.white),
@@ -2150,7 +2331,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 TextField(controller: renterWelcomeRulesCtrl, maxLines: 3, decoration: const InputDecoration(labelText: "🏠 Renter Welcome Rules", border: OutlineInputBorder())),
                 const SizedBox(height: 14),
                 ElevatedButton(
-                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00897B), minimumSize: const Size(double.infinity, 45)),
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), minimumSize: const Size(double.infinity, 45)),
                   onPressed: () {
                     _saveOwnerProfile();
                     Navigator.pop(ctx);
