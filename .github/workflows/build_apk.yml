@@ -1,4 +1,4 @@
-name: Build Direct Installable Android APK
+name: Build Direct Installable Universal APK
 
 on:
   push:
@@ -24,15 +24,25 @@ jobs:
           flutter-version: '3.24.x'
           channel: 'stable'
 
+      # 1. Generate Clean Android Platform
       - name: Create Android Platform
         run: flutter create . --project-name rent_manager --platforms=android --org com.app.rentmanager
 
-      - name: Add WhatsApp Queries to AndroidManifest
+      # 2. Inject Package Installer & Storage Permissions (The ZArchiver Fix)
+      - name: Configure Android Permissions & WhatsApp Queries
         run: |
           python3 -c "
           manifest_path = 'android/app/src/main/AndroidManifest.xml'
           with open(manifest_path, 'r') as f:
               content = f.read()
+
+          permissions = '''
+              <uses-permission android:name=\"android.permission.INTERNET\" />
+              <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" />
+              <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" />
+              <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />
+          '''
+          
           queries = '''
               <queries>
                   <package android:name=\"com.whatsapp\" />
@@ -47,20 +57,59 @@ jobs:
                   </intent>
               </queries>
           '''
+          
+          if '<uses-permission' not in content:
+              content = content.replace('<application', permissions + '\n    <application')
+          
           if '<queries>' not in content:
               content = content.replace('<application', queries + '\n    <application')
-              with open(manifest_path, 'w') as f:
-                  f.write(content)
+          
+          with open(manifest_path, 'w') as f:
+              f.write(content)
           "
 
-      - name: Get Flutter Packages
+      # 3. Configure Official Release Signing in build.gradle
+      - name: Configure Gradle Signing & MinSDK
+        run: |
+          # Generate Official Release Keystore
+          keytool -genkeypair -v -keystore android/app/release.jks -alias rentkey -keyalg RSA -keysize 2048 -validity 10000 -storepass rentmanager123 -keypass rentmanager123 -dname "CN=RentManager, O=App, C=IN"
+
+          python3 -c "
+          gradle_path = 'android/app/build.gradle'
+          with open(gradle_path, 'r') as f:
+              content = f.read()
+          
+          signing_config = '''
+              signingConfigs {
+                  release {
+                      storeFile file('release.jks')
+                      storePassword 'rentmanager123'
+                      keyAlias 'rentkey'
+                      keyPassword 'rentmanager123'
+                  }
+              }
+          '''
+          
+          if 'signingConfigs {' not in content:
+              content = content.replace('buildTypes {', signing_config + '\n    buildTypes {')
+          
+          content = content.replace('signingConfig = signingConfigs.debug', 'signingConfig = signingConfigs.release')
+          
+          with open(gradle_path, 'w') as f:
+              f.write(content)
+          "
+
+      # 4. Fetch Dependencies
+      - name: Get Dependencies
         run: flutter pub get
 
-      - name: Build Direct Signed APK
-        run: flutter build apk --debug
+      # 5. Build Signed Universal Release APK
+      - name: Build Official Universal Release APK
+        run: flutter build apk --release --no-tree-shake-icons
 
-      - name: Upload Direct Installable APK
+      # 6. Upload Final Installable APK
+      - name: Upload Final APK
         uses: actions/upload-artifact@v4
         with:
-          name: RentManager-Direct-Install
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          name: RentManager-Direct-Install-APK
+          path: build/app/outputs/flutter-apk/app-release.apk
