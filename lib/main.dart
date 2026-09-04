@@ -27,26 +27,16 @@ class RentManagerApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF4F7F9),
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF0F172A),
-          primary: const Color(0xFF0EA5E9),
-          secondary: const Color(0xFF10B981),
+          primary: const Color(0xFF0F766E),
           surface: Colors.white,
         ),
         inputDecorationTheme: InputDecorationTheme(
           filled: true,
           fillColor: Colors.white,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide.none,
-          ),
-          enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5),
-          ),
-          focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(14),
-            borderSide: const BorderSide(color: Color(0xFF0EA5E9), width: 2),
-          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
+          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade200, width: 1.5)),
+          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF0F766E), width: 2)),
           labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14, fontWeight: FontWeight.w500),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -57,15 +47,8 @@ class RentManagerApp extends StatelessWidget {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
-        dialogTheme: DialogTheme(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          backgroundColor: Colors.white,
-          elevation: 10,
-        ),
-        bottomSheetTheme: const BottomSheetThemeData(
-          backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-        ),
+        dialogTheme: DialogTheme(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), backgroundColor: Colors.white, elevation: 10),
+        bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24)))),
       ),
       home: const MainHomeScreen(),
     );
@@ -87,7 +70,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   Map<String, dynamic> ownerProfile = {};
   String listFilter = 'all';
 
-  String personType = 'Student';
+  String personType = 'Student'; // 'Student', 'Renter', 'Hostel'
   final nameCtrl = TextEditingController();
   final mobileCtrl = TextEditingController();
   final parentMobileCtrl = TextEditingController();
@@ -106,6 +89,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   String? idCardImgBase64;
   String sendToTarget = 'student';
 
+  // Owner Profile Controllers
   final ownerNameCtrl = TextEditingController();
   final ownerEmailCtrl = TextEditingController();
   final ownerPhoneCtrl = TextEditingController();
@@ -192,20 +176,15 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   }
 
   Future<DateTime?> _selectCustomDate(BuildContext context, DateTime initDate) async {
-    return await showDatePicker(
-      context: context, initialDate: initDate, firstDate: DateTime(2000), lastDate: DateTime(2100),
-      builder: (context, child) => Theme(
-        data: ThemeData.light().copyWith(
-          colorScheme: const ColorScheme.light(primary: Color(0xFF0EA5E9)),
-          dialogTheme: DialogTheme(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))),
-        ), child: child!,
-      ),
-    );
+    return await showDatePicker(context: context, initialDate: initDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
   }
 
   void _sendWhatsApp(String phone, String text) async {
     String clean = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (clean.isEmpty) return;
+    if (clean.isEmpty) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mobile number missing ya galat hai!")));
+      return;
+    }
     if (clean.length == 10) clean = '91$clean';
     else if (clean.length == 11 && clean.startsWith('0')) clean = '91${clean.substring(1)}';
 
@@ -242,7 +221,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   void _sendBulkReminders() {
     List<Map<String, dynamic>> unpaidList = renters.where((r) => r['isClosed'] != true && _getAccurateUnpaidDue(r) > 0).toList();
     if (unpaidList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sabhi ka bill paid hai!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sabhi ka bill paid hai! Koi unpaid nahi mila.")));
       return;
     }
 
@@ -266,7 +245,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
                 subtitle: Text("$roomLabel | Total Due: ₹$due"),
                 trailing: IconButton(
-                  icon: const Icon(Icons.send_rounded, color: Color(0xFF10B981)),
+                  icon: const Icon(Icons.send_rounded, color: Color(0xFF25D366)),
                   onPressed: () {
                     String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
                     String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
@@ -283,8 +262,22 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
+  void _sharePoliceVerificationForm(Map<String, dynamic> item) {
+    String pName = propertyNameCtrl.text.isNotEmpty ? propertyNameCtrl.text : "Institute / Hostel";
+    String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Property Manager";
+    String oPhone = ownerPhoneCtrl.text.isNotEmpty ? ownerPhoneCtrl.text : "";
+    bool isStudent = (item['pType'] == 'Student');
+
+    String verificationDoc = "==============================\n📋 MEMBER RECORD & VERIFICATION\n==============================\nProperty: $pName\n\n1. Full Name: ${item['name']}\n2. Category: ${item['pType']}\n3. ${isStudent ? 'Roll Number' : 'Room No'}: ${item['roomNo'] ?? 'N/A'}\n4. Mobile: ${item['mobile']}\n5. Parents Mobile: ${item['parentMobile'] ?? 'N/A'}\n6. Father Name: ${item['father'] ?? 'N/A'}\n7. Address: ${item['address'] ?? 'N/A'}\n8. ID No: ${item['idNum'] ?? 'N/A'}\n9. Joining Date: ${item['entryDate']}\n10. Monthly Rent/Fee: ₹${item['rent']}\n11. Security Deposit: ₹${item['securityDeposit'] ?? 0}\n\nOwner: $oName\nContact: $oPhone\n==============================";
+    Share.share(verificationDoc, subject: "Member Verification - ${item['name']}");
+  }
+
   void _saveNewRegistration() async {
-    if (nameCtrl.text.trim().isEmpty || mobileCtrl.text.trim().isEmpty) return;
+    if (nameCtrl.text.trim().isEmpty || mobileCtrl.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Kripya Name aur Mobile number dalein!")));
+      return;
+    }
+
     bool isRenterOrHostel = (personType == 'Renter' || personType == 'Hostel');
     DateTime dueDate = rentEntryDate.add(const Duration(days: 30));
     String rentDateStr = "${rentEntryDate.year}-${rentEntryDate.month.toString().padLeft(2, '0')}-${rentEntryDate.day.toString().padLeft(2, '0')}";
@@ -293,53 +286,470 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
 
     Map<String, dynamic> newEntry = {
       'id': DateTime.now().millisecondsSinceEpoch,
-      'pType': personType, 'name': nameCtrl.text.trim(), 'mobile': mobileCtrl.text.trim(),
-      'parentMobile': parentMobileCtrl.text.trim(), 'father': fatherCtrl.text.trim(),
-      'address': addressCtrl.text.trim(), 'roomNo': roomOrRollCtrl.text.trim(),
-      'idNum': idNumCtrl.text.trim(), 'idCardImg': idCardImgBase64 ?? '', 'studentImg': studentImgBase64 ?? '',
-      'entryDate': rentDateStr, 'elecDate': isRenterOrHostel ? elecDateStr : null,
-      'nextDueDate': nextDueDateStr, 'rent': double.tryParse(rentCtrl.text) ?? 0.0,
-      'securityDeposit': double.tryParse(advanceCtrl.text) ?? 0.0, 'extraWalletAdvance': 0.0,
+      'pType': personType,
+      'name': nameCtrl.text.trim(),
+      'mobile': mobileCtrl.text.trim(),
+      'parentMobile': parentMobileCtrl.text.trim(),
+      'father': fatherCtrl.text.trim(),
+      'address': addressCtrl.text.trim(),
+      'roomNo': roomOrRollCtrl.text.trim(),
+      'idNum': idNumCtrl.text.trim(),
+      'idCardImg': idCardImgBase64 ?? '',
+      'studentImg': studentImgBase64 ?? '',
+      'entryDate': rentDateStr,
+      'elecDate': isRenterOrHostel ? elecDateStr : null,
+      'nextDueDate': nextDueDateStr,
+      'rent': double.tryParse(rentCtrl.text) ?? 0.0,
+      'securityDeposit': double.tryParse(advanceCtrl.text) ?? 0.0,
+      'extraWalletAdvance': 0.0,
       'prevReading': isRenterOrHostel ? (double.tryParse(initialReadingCtrl.text) ?? 0.0) : 0.0,
-      'isClosed': false, 'closedDate': null, 'closureDetails': null, 'history': []
+      'isClosed': false,
+      'closedDate': null,
+      'closureDetails': null,
+      'history': []
     };
 
     setState(() => renters.add(newEntry));
     await _saveRentersToStorage();
 
+    String welcomeRules = (personType == 'Student' || personType == 'Hostel')
+        ? (studentWelcomeRulesCtrl.text.isNotEmpty ? studentWelcomeRulesCtrl.text : "Welcome to our Institution / Hostel!")
+        : (renterWelcomeRulesCtrl.text.isNotEmpty ? renterWelcomeRulesCtrl.text : "Welcome to Residency!");
+
+    String ownerName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Manager";
+    String ownerPhone = ownerPhoneCtrl.text.isNotEmpty ? ownerPhoneCtrl.text : "";
+    String feeLabel = (personType == 'Student') ? "Monthly Fee" : "Monthly Rent";
+    String roomLabel = (personType == 'Student') ? "Roll No" : "Room / Bed";
+
+    String msg = "Namaste ${nameCtrl.text.trim()} ji,\n\n$welcomeRules\n\n📌 Registration Details:\nCategory: $personType\n$roomLabel: ${roomOrRollCtrl.text.trim()}\nJoining Date: $rentDateStr\nNext Due Date: $nextDueDateStr\n$feeLabel: ₹${rentCtrl.text}\nSecurity Deposit Paid: ₹${advanceCtrl.text}\n\nOwner: $ownerName\nContact: $ownerPhone";
+
+    String sendPhone = (sendToTarget == 'parents' && parentMobileCtrl.text.trim().isNotEmpty) ? parentMobileCtrl.text.trim() : mobileCtrl.text.trim();
+    _sendWhatsApp(sendPhone, msg);
+
     nameCtrl.clear(); mobileCtrl.clear(); parentMobileCtrl.clear(); fatherCtrl.clear(); addressCtrl.clear(); roomOrRollCtrl.clear(); idNumCtrl.clear(); rentCtrl.clear(); advanceCtrl.text = '0'; initialReadingCtrl.text = '0';
     setState(() { rentEntryDate = DateTime.now(); elecStartDate = DateTime.now(); studentImgBase64 = null; idCardImgBase64 = null; });
+
     _tabController.animateTo(2);
   }
 
-  // DIALOG FUNCTIONS
   void _showEditDialog(Map<String, dynamic> item) {
+    bool isStudent = (item['pType'] == 'Student');
+    bool isRenterOrHostel = (item['pType'] == 'Renter' || item['pType'] == 'Hostel');
+
     final eName = TextEditingController(text: item['name']);
     final eMobile = TextEditingController(text: item['mobile']);
+    final eParentMobile = TextEditingController(text: item['parentMobile'] ?? '');
+    final eFather = TextEditingController(text: item['father'] ?? '');
+    final eAddress = TextEditingController(text: item['address'] ?? '');
+    final eRoomNo = TextEditingController(text: item['roomNo'] ?? '');
     final eRent = TextEditingController(text: item['rent'].toString());
+    final eSecurity = TextEditingController(text: (item['securityDeposit'] ?? 0.0).toString());
+    final eIdNum = TextEditingController(text: item['idNum'] ?? '');
+    final ePrevReading = TextEditingController(text: item['prevReading']?.toString() ?? '0');
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("✏️ Edit Details", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+        title: Text("✏️ Edit: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(controller: eName, decoration: const InputDecoration(labelText: "Full Name")),
+              const SizedBox(height: 10),
+              TextField(controller: eMobile, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile Number")),
+              if (isStudent || item['pType'] == 'Hostel') ...[
+                const SizedBox(height: 10),
+                TextField(controller: eParentMobile, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Parents Mobile Number")),
+              ],
+              const SizedBox(height: 10),
+              TextField(controller: eFather, decoration: const InputDecoration(labelText: "Father / Guardian Name")),
+              const SizedBox(height: 10),
+              TextField(controller: eRoomNo, decoration: InputDecoration(labelText: isStudent ? "Roll Number" : "Room / Bed No.")),
+              const SizedBox(height: 10),
+              TextField(controller: eAddress, decoration: const InputDecoration(labelText: "Address")),
+              const SizedBox(height: 10),
+              TextField(controller: eRent, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: isStudent ? "Monthly Fee (₹)" : "Monthly Rent (₹)")),
+              const SizedBox(height: 10),
+              TextField(controller: eSecurity, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Security Deposit (₹)")),
+              if (isRenterOrHostel) ...[
+                const SizedBox(height: 10),
+                TextField(controller: ePrevReading, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Meter Reading (Units)")),
+              ],
+              const SizedBox(height: 10),
+              TextField(controller: eIdNum, decoration: const InputDecoration(labelText: "Identity / Document No")),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
+            onPressed: () {
+              setState(() {
+                item['name'] = eName.text.trim();
+                item['mobile'] = eMobile.text.trim();
+                item['parentMobile'] = eParentMobile.text.trim();
+                item['father'] = eFather.text.trim();
+                item['address'] = eAddress.text.trim();
+                item['roomNo'] = eRoomNo.text.trim();
+                if (isRenterOrHostel) {
+                  item['prevReading'] = double.tryParse(ePrevReading.text) ?? item['prevReading'];
+                }
+                item['rent'] = double.tryParse(eRent.text) ?? item['rent'];
+                item['securityDeposit'] = double.tryParse(eSecurity.text) ?? 0.0;
+                item['idNum'] = eIdNum.text.trim();
+              });
+              _saveRentersToStorage();
+              Navigator.pop(ctx);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Details Updated!")));
+            },
+            child: const Text("Save Changes"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _openCloseAccountDialog(Map<String, dynamic> item) {
+    bool isStudent = (item['pType'] == 'Student');
+    DateTime leaveDate = DateTime.now();
+    double security = (item['securityDeposit'] ?? 0.0) as double;
+    double unpaidDue = _getAccurateUnpaidDue(item, category: 'all');
+    double startUnits = (item['prevReading'] as num?)?.toDouble() ?? 0.0;
+
+    final finalReadingCtrl = TextEditingController(text: startUnits.toString());
+    final rateCtrl = TextEditingController(text: defaultUnitRateCtrl.text.isNotEmpty ? defaultUnitRateCtrl.text : '8');
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) {
+          String leaveDateFormatted = "${leaveDate.year}-${leaveDate.month.toString().padLeft(2, '0')}-${leaveDate.day.toString().padLeft(2, '0')}";
+          double currentReading = double.tryParse(finalReadingCtrl.text) ?? startUnits;
+          double finalUnitsUsed = isStudent ? 0.0 : (currentReading > startUnits ? currentReading - startUnits : 0.0);
+          double finalRate = double.tryParse(rateCtrl.text) ?? 8.0;
+          double finalElecBill = isStudent ? 0.0 : (finalUnitsUsed * finalRate);
+
+          double totalDueToPay = unpaidDue + finalElecBill;
+          double netBalance = security - totalDueToPay;
+          bool isRefund = netBalance >= 0;
+
+          return AlertDialog(
+            title: Text("🚪 Final Settlement: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(color: const Color(0xFFF1F5F9), borderRadius: BorderRadius.circular(12)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("🗓 Joining Date: ${item['entryDate']}", style: const TextStyle(fontSize: 12)),
+                        Text("🔒 Security Deposit: ₹$security", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF0F766E))),
+                        Text("⚠️ Unpaid Due: ₹$unpaidDue", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE11D48))),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      DateTime? p = await _selectCustomDate(context, leaveDate);
+                      if (p != null) setDialogState(() => leaveDate = p);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(8)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("📅 Leaving Date: $leaveDateFormatted", style: const TextStyle(fontWeight: FontWeight.w600)),
+                          const Icon(Icons.calendar_month, color: Color(0xFFE11D48), size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (!isStudent) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: finalReadingCtrl,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setDialogState(() {}),
+                      decoration: InputDecoration(labelText: "Final Meter Reading (Prev: $startUnits)", border: const OutlineInputBorder()),
+                    ),
+                  ],
+                  const SizedBox(height: 14),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: isRefund ? const Color(0xFFECFDF5) : const Color(0xFFFFF1F2),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: isRefund ? const Color(0xFF10B981) : const Color(0xFFF43F5E), width: 1.5),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(isRefund ? "💰 REFUND TO MEMBER:" : "⚠️ COLLECT FROM MEMBER:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isRefund ? const Color(0xFF047857) : const Color(0xFFBE123C))),
+                        const SizedBox(height: 4),
+                        Text("₹${netBalance.abs().toStringAsFixed(1)}", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isRefund ? const Color(0xFF047857) : const Color(0xFFBE123C))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
+                  String settlementText = isRefund ? "*₹${netBalance.abs().toStringAsFixed(1)} Refund kiya gaya.*" : "*₹${netBalance.abs().toStringAsFixed(1)} Collect kiya gaya.*";
+                  String nocMsg = "*📜 FINAL SETTLEMENT NOTICE*\nName: ${item['name']}\nLeaving Date: $leaveDateFormatted\nSecurity: ₹$security\nTotal Due: ₹$totalDueToPay\n*RESULT:* $settlementText\n*Status: CLEARED & CLOSED ✅*\nOwner: $oName";
+                  setState(() {
+                    item['isClosed'] = true;
+                    item['closedDate'] = leaveDateFormatted;
+                  });
+                  _saveRentersToStorage();
+                  _sendWhatsApp(item['mobile'], nocMsg);
+                },
+                child: const Text("Confirm & Close Account"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _openStudentGenerateBillDialog(Map<String, dynamic> item) {
+    DateTime selectedBillDate = DateTime.now();
+    double rent = (item['rent'] as num).toDouble();
+    double backDue = _getAccurateUnpaidDue(item, category: 'rent');
+    double extraWallet = (item['extraWalletAdvance'] as num?)?.toDouble() ?? 0.0;
+    double grossTotal = rent + backDue;
+    double advanceUsed = (extraWallet > 0) ? (extraWallet >= grossTotal ? grossTotal : extraWallet) : 0.0;
+    double netPayable = grossTotal - advanceUsed;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) {
+          String dateFormatted = "${selectedBillDate.year}-${selectedBillDate.month.toString().padLeft(2, '0')}-${selectedBillDate.day.toString().padLeft(2, '0')}";
+          return AlertDialog(
+            title: Text("⚡ Fee Notice: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("Monthly Fee: ₹$rent"),
+                  if (backDue > 0) Text("+ Back Due: ₹$backDue", style: const TextStyle(color: Colors.red)),
+                  if (advanceUsed > 0) Text("- Advance Used: ₹$advanceUsed", style: const TextStyle(color: Colors.teal)),
+                  const Divider(),
+                  Text("NET TOTAL: ₹$netPayable", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
+                  String msg = "*🎓 STUDENT FEE NOTICE*\nName: ${item['name']}\nDate: $dateFormatted\n*TOTAL PAYABLE: ₹$netPayable*\nUPI: $upi";
+                  setState(() {
+                    item['extraWalletAdvance'] = extraWallet - advanceUsed;
+                    item['history'].add({
+                      'date': dateFormatted, 'type': 'Monthly Fee', 'totalPayable': netPayable, 'paidAmount': 0.0, 'paymentDate': '-', 'status': 'Pending', 'backDue': backDue, 'advanceUsed': advanceUsed, 'rentAmount': rent
+                    });
+                  });
+                  _saveRentersToStorage();
+                  _sendWhatsApp(item['mobile'], msg);
+                },
+                child: const Text("Generate & Send Bill"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _showRenterOrHostelBillOptionDialog(Map<String, dynamic> item) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text("⚡ Bill Options for ${item['name']}", style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 14),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0284C7), foregroundColor: Colors.white),
+              icon: const Icon(Icons.electric_bolt),
+              onPressed: () { Navigator.pop(ctx); _openElectricityCalculationDialog(item, isCombined: false); },
+              label: const Text("1. Electricity Bill Only"),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
+              icon: const Icon(Icons.house_rounded),
+              onPressed: () { Navigator.pop(ctx); _openRentOnlyBill(item); },
+              label: const Text("2. Rent Bill Only"),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFD97706), foregroundColor: Colors.white),
+              icon: const Icon(Icons.receipt_long_rounded),
+              onPressed: () { Navigator.pop(ctx); _openElectricityCalculationDialog(item, isCombined: true); },
+              label: const Text("3. Combined Rent + Electricity"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _openRentOnlyBill(Map<String, dynamic> item) {
+    double rent = (item['rent'] as num).toDouble();
+    double backDue = _getAccurateUnpaidDue(item, category: 'rent');
+    double netPayable = rent + backDue;
+    String dateStr = DateTime.now().toString().split(' ')[0];
+
+    setState(() {
+      item['history'].add({
+        'date': dateStr, 'type': 'Rent Bill', 'totalPayable': netPayable, 'paidAmount': 0.0, 'paymentDate': '-', 'status': 'Pending', 'rentAmount': rent, 'backDue': backDue
+      });
+    });
+    _saveRentersToStorage();
+    _sendWhatsApp(item['mobile'], "*🏠 RENT BILL*\nName: ${item['name']}\n*TOTAL PAYABLE: ₹$netPayable*");
+  }
+
+  void _openElectricityCalculationDialog(Map<String, dynamic> item, {required bool isCombined}) {
+    final currentReadingCtrl = TextEditingController();
+    final rateCtrl = TextEditingController(text: defaultUnitRateCtrl.text.isNotEmpty ? defaultUnitRateCtrl.text : '8');
+    double startUnits = (item['prevReading'] as num?)?.toDouble() ?? 0.0;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(isCombined ? "📋 Combined Bill" : "⚡ Electricity Bill"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: eName, decoration: const InputDecoration(labelText: "Full Name")),
+            Text("Previous Reading: $startUnits Units"),
             const SizedBox(height: 10),
-            TextField(controller: eMobile, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile Number")),
+            TextField(controller: currentReadingCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Current Reading *", border: OutlineInputBorder())),
             const SizedBox(height: 10),
-            TextField(controller: eRent, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Monthly Rent (₹)")),
+            TextField(controller: rateCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Per Unit Rate (₹)", border: OutlineInputBorder())),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
             onPressed: () {
-              setState(() { item['name'] = eName.text.trim(); item['mobile'] = eMobile.text.trim(); item['rent'] = double.tryParse(eRent.text) ?? item['rent']; });
-              _saveRentersToStorage(); Navigator.pop(ctx);
-            }, child: const Text("Save"),
+              double endUnits = double.tryParse(currentReadingCtrl.text) ?? 0.0;
+              if (endUnits < startUnits) return;
+              Navigator.pop(ctx);
+              double rate = double.tryParse(rateCtrl.text) ?? 8.0;
+              double unitsUsed = endUnits - startUnits;
+              double elecBill = unitsUsed * rate;
+              double rent = isCombined ? (item['rent'] as num).toDouble() : 0.0;
+              double netPayable = elecBill + rent;
+              String dateStr = DateTime.now().toString().split(' ')[0];
+
+              setState(() {
+                item['prevReading'] = endUnits;
+                item['history'].add({
+                  'date': dateStr, 'type': isCombined ? 'Rent + Electricity' : 'Electricity Bill', 'unitsUsed': unitsUsed, 'elecBill': elecBill, 'totalPayable': netPayable, 'paidAmount': 0.0, 'status': 'Pending'
+                });
+              });
+              _saveRentersToStorage();
+              _sendWhatsApp(item['mobile'], "*⚡ ELECTRICITY BILL*\nConsumed: $unitsUsed Units\n*TOTAL PAYABLE: ₹$netPayable*");
+            },
+            child: const Text("Calculate & Send"),
           ),
         ],
+      ),
+    );
+  }
+
+  void _openPaymentRecordDialog(Map<String, dynamic> item, Map<String, dynamic> billRecord) {
+    double total = (billRecord['totalPayable'] as num).toDouble();
+    final paidCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("💳 Record Payment"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text("Total Bill: ₹$total"),
+            const SizedBox(height: 10),
+            TextField(controller: paidCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Amount Paid (₹) *", border: OutlineInputBorder())),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
+            onPressed: () {
+              Navigator.pop(ctx);
+              double paid = double.tryParse(paidCtrl.text) ?? 0.0;
+              String dateStr = DateTime.now().toString().split(' ')[0];
+              setState(() {
+                billRecord['paidAmount'] = paid;
+                billRecord['paymentDate'] = dateStr;
+                billRecord['status'] = paid >= total ? 'Paid' : 'Partial';
+              });
+              _saveRentersToStorage();
+              _sendWhatsApp(item['mobile'], "*🧾 PAYMENT RECEIVED*\nPaid: ₹$paid\nStatus: ${billRecord['status']}");
+            },
+            child: const Text("Save Payment"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHistoryDialog(Map<String, dynamic> item) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text("📜 History: ${item['name']}"),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: (item['history'] ?? []).length,
+            itemBuilder: (c, idx) {
+              var h = item['history'][idx];
+              return ListTile(
+                title: Text(h['type'] ?? 'Bill'),
+                subtitle: Text("Date: ${h['date']} | Total: ₹${h['totalPayable']} | Status: ${h['status']}"),
+                trailing: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
+                  onPressed: () => _openPaymentRecordDialog(item, h),
+                  child: const Text("Pay"),
+                ),
+              );
+            },
+          ),
+        ),
+        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close"))],
       ),
     );
   }
@@ -347,15 +757,14 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   void _openAddExpenseDialog() {
     final titleCtrl = TextEditingController();
     final amountCtrl = TextEditingController();
-    DateTime expenseDate = DateTime.now();
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("💸 Add Property Expense", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("💸 Add Expense"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: "Description", border: OutlineInputBorder())),
+            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: "Title", border: OutlineInputBorder())),
             const SizedBox(height: 10),
             TextField(controller: amountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Amount (₹)", border: OutlineInputBorder())),
           ],
@@ -363,12 +772,15 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
             onPressed: () {
               double amt = double.tryParse(amountCtrl.text) ?? 0.0;
               if (amt <= 0) return;
-              setState(() { expenses.add({ 'id': DateTime.now().millisecondsSinceEpoch, 'category': 'Other', 'title': titleCtrl.text, 'amount': amt, 'date': "${expenseDate.year}-${expenseDate.month.toString().padLeft(2, '0')}-${expenseDate.day.toString().padLeft(2, '0')}" }); });
-              _saveExpensesToStorage(); Navigator.pop(ctx);
-            }, child: const Text("Save"),
+              setState(() { expenses.add({'title': titleCtrl.text, 'amount': amt, 'date': DateTime.now().toString().split(' ')[0]}); });
+              _saveExpensesToStorage();
+              Navigator.pop(ctx);
+            },
+            child: const Text("Save"),
           ),
         ],
       ),
@@ -381,42 +793,32 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("🛠️ Log Member Issue", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("🛠️ Log Issue"),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(controller: roomCtrl, decoration: const InputDecoration(labelText: "Room / Member Name", border: OutlineInputBorder())),
+            TextField(controller: roomCtrl, decoration: const InputDecoration(labelText: "Room / Name", border: OutlineInputBorder())),
             const SizedBox(height: 10),
-            TextField(controller: titleCtrl, maxLines: 2, decoration: const InputDecoration(labelText: "Issue Details", border: OutlineInputBorder())),
+            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: "Issue Details", border: OutlineInputBorder())),
           ],
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
             onPressed: () {
               if (titleCtrl.text.isEmpty) return;
-              setState(() { complaints.add({ 'id': DateTime.now().millisecondsSinceEpoch, 'room': roomCtrl.text, 'title': titleCtrl.text, 'priority': 'Normal', 'status': 'Pending', 'date': DateTime.now().toString().split(' ')[0] }); });
-              _saveComplaintsToStorage(); Navigator.pop(ctx);
-            }, child: const Text("Log Issue"),
+              setState(() { complaints.add({'room': roomCtrl.text, 'title': titleCtrl.text, 'status': 'Pending', 'date': DateTime.now().toString().split(' ')[0]}); });
+              _saveComplaintsToStorage();
+              Navigator.pop(ctx);
+            },
+            child: const Text("Save"),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildFilterChip(String label, String value) {
-    bool isSelected = (listFilter == value);
-    return ChoiceChip(
-      label: Text(label, style: TextStyle(fontSize: 13, fontWeight: isSelected ? FontWeight.bold : FontWeight.w600, color: isSelected ? Colors.white : Colors.black87)),
-      selected: isSelected,
-      selectedColor: const Color(0xFF0F172A),
-      backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: isSelected ? Colors.transparent : Colors.grey.shade300)),
-      onSelected: (_) => setState(() => listFilter = value),
-    );
-  }
-
-  // APP BUILDER
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -425,7 +827,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           preferredSize: const Size.fromHeight(130),
           child: Container(
             decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [Color(0xFF0F172A), Color(0xFF1E293B)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+              gradient: LinearGradient(colors: [Color(0xFF0F172A), Color(0xFF0F766E)], begin: Alignment.topLeft, end: Alignment.bottomRight),
             ),
             child: AppBar(
               backgroundColor: Colors.transparent, elevation: 0, toolbarHeight: 70,
@@ -434,19 +836,19 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.domain_rounded, color: Color(0xFF0EA5E9), size: 24),
+                    child: const Icon(Icons.domain_rounded, color: Colors.amberAccent, size: 24),
                   ),
                   const SizedBox(width: 12),
-                  Expanded(child: Text(propertyNameCtrl.text.isNotEmpty ? propertyNameCtrl.text : 'RentManager Pro', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Colors.white))),
+                  Expanded(child: Text(propertyNameCtrl.text.isNotEmpty ? propertyNameCtrl.text : 'RentManager Pro', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white))),
                 ],
               ),
               bottom: TabBar(
-                controller: _tabController, isScrollable: true, indicatorColor: const Color(0xFF0EA5E9), indicatorWeight: 4, labelColor: Colors.white, unselectedLabelColor: Colors.white54, labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                controller: _tabController, isScrollable: true, indicatorColor: Colors.amberAccent, indicatorWeight: 3, labelColor: Colors.amberAccent, unselectedLabelColor: Colors.white70,
                 tabs: const [
                   Tab(icon: Icon(Icons.dashboard_rounded, size: 20), text: "Dashboard"),
                   Tab(icon: Icon(Icons.person_add_alt_1_rounded, size: 20), text: "+ New Entry"),
                   Tab(icon: Icon(Icons.folder_shared_rounded, size: 20), text: "Members Data"),
-                  Tab(icon: Icon(Icons.account_balance_wallet_rounded, size: 20), text: "Expenses"),
+                  Tab(icon: Icon(Icons.account_balance_wallet_rounded, size: 20), text: "Expenses & Issues"),
                 ],
               ),
             ),
@@ -458,7 +860,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             _buildDashboardView(),
             _buildNewEntryForm(),
             _buildRegisteredListView(),
-            _buildExpensesAndComplaintsView(), 
+            _buildExpensesAndComplaintsView(),
           ],
         ),
       ),
@@ -470,11 +872,16 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     for (var r in renters) {
       if (r['isClosed'] != true) {
         activeResidents++;
-        totalSecurity += (r['securityDeposit'] ?? r['advance'] ?? 0.0) as double;
+        totalSecurity += (r['securityDeposit'] ?? 0.0) as double;
         totalPendingDue += _getAccurateUnpaidDue(r);
+        for (var h in (r['history'] ?? [])) {
+          totalCollected += (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
+        }
       }
     }
     double totalExpenseAmt = expenses.fold(0.0, (sum, item) => sum + (item['amount'] as num).toDouble());
+    double netProfit = totalCollected - totalExpenseAmt;
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -484,49 +891,65 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             children: [
               Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF10B981), foregroundColor: Colors.white), onPressed: _sendBulkReminders, icon: const Icon(Icons.notifications_active_rounded), label: const Text("Bulk Reminders"))),
               const SizedBox(width: 12),
-              Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F172A), foregroundColor: Colors.white), onPressed: () => _tabController.animateTo(1), icon: const Icon(Icons.person_add_alt_1_rounded), label: const Text("Add Member"))),
+              Expanded(child: ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white), onPressed: () => _tabController.animateTo(1), icon: const Icon(Icons.person_add_alt_1_rounded), label: const Text("Add Member"))),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           Row(
             children: [
-              Expanded(child: _buildPremiumMetricCard(title: "MARKET DUE", value: "₹${totalPendingDue.toStringAsFixed(0)}", icon: Icons.error_outline_rounded, color: const Color(0xFFF43F5E))),
+              Expanded(child: _buildMetricCard("TOTAL COLLECTED", "₹${totalCollected.toStringAsFixed(0)}", Icons.wallet, const Color(0xFF10B981))),
               const SizedBox(width: 12),
-              Expanded(child: _buildPremiumMetricCard(title: "ACTIVE MEMBERS", value: "$activeResidents", icon: Icons.people_alt_rounded, color: const Color(0xFF0EA5E9))),
+              Expanded(child: _buildMetricCard("MARKET DUE", "₹${totalPendingDue.toStringAsFixed(0)}", Icons.error_outline, const Color(0xFFE11D48))),
             ],
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildMetricCard("ACTIVE MEMBERS", "$activeResidents", Icons.people, const Color(0xFF0284C7))),
+              const SizedBox(width: 12),
+              Expanded(child: _buildMetricCard("NET PROFIT", "₹${netProfit.toStringAsFixed(0)}", Icons.trending_up, const Color(0xFF7C3AED))),
+            ],
+          ),
+          const SizedBox(height: 16),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF0F172A), Color(0xFF1E293B)]), borderRadius: BorderRadius.circular(16)),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-              const Text("Security Deposit", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 14)),
-              Text("₹${totalSecurity.toStringAsFixed(0)}", style: const TextStyle(color: Color(0xFFFBBF24), fontWeight: FontWeight.bold, fontSize: 20)),
-            ]),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF0F172A), Color(0xFF1E293B)]), borderRadius: BorderRadius.circular(14)),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("Security Deposit Held", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                Text("₹${totalSecurity.toStringAsFixed(0)}", style: const TextStyle(color: Colors.amberAccent, fontWeight: FontWeight.bold, fontSize: 18)),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildPremiumMetricCard({required String title, required String value, required IconData icon, required Color color}) {
+  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4))]),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(14), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8)]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, size: 20, color: color)),
-          const SizedBox(height: 14),
-          Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: Color(0xFF0F172A))),
-          const SizedBox(height: 4),
-          Text(title, style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
+          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
+            Icon(icon, size: 18, color: color),
+          ]),
+          const SizedBox(height: 8),
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
         ],
       ),
     );
   }
 
   Widget _buildNewEntryForm() {
+    bool isStudent = (personType == 'Student');
+    bool isRenterOrHostel = (personType == 'Renter' || personType == 'Hostel');
+    String rentDateStr = "${rentEntryDate.year}-${rentEntryDate.month.toString().padLeft(2, '0')}-${rentEntryDate.day.toString().padLeft(2, '0')}";
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Card(
@@ -537,17 +960,40 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DropdownButtonFormField<String>(value: personType, decoration: const InputDecoration(labelText: "Category"), items: const [DropdownMenuItem(value: "Student", child: Text("🎓 Student")), DropdownMenuItem(value: "Hostel", child: Text("🏢 Hostel")), DropdownMenuItem(value: "Renter", child: Text("🏠 Renter"))], onChanged: (v) => setState(() => personType = v!)),
+              DropdownButtonFormField<String>(
+                value: personType, 
+                decoration: const InputDecoration(labelText: "Category"), 
+                items: const [
+                  DropdownMenuItem(value: "Student", child: Text("🎓 Student")), 
+                  DropdownMenuItem(value: "Hostel", child: Text("🏢 Hostel")), 
+                  DropdownMenuItem(value: "Renter", child: Text("🏠 Renter"))
+                ], 
+                onChanged: (v) => setState(() => personType = v!)
+              ),
               const SizedBox(height: 12),
               TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Full Name *")),
               const SizedBox(height: 12),
               TextField(controller: mobileCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "WhatsApp No. *")),
+              if (isStudent || personType == 'Hostel') ...[
+                const SizedBox(height: 12),
+                TextField(controller: parentMobileCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Parents Mobile Number")),
+              ],
               const SizedBox(height: 12),
-              TextField(controller: rentCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Monthly Rent/Fee (₹) *")),
+              TextField(controller: roomOrRollCtrl, decoration: InputDecoration(labelText: isStudent ? "Roll No *" : "Room / Bed No *")),
+              if (isRenterOrHostel) ...[
+                const SizedBox(height: 12),
+                TextField(controller: initialReadingCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Initial Meter Reading")),
+              ],
+              const SizedBox(height: 12),
+              TextField(controller: rentCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: isStudent ? "Monthly Fee (₹) *" : "Monthly Rent (₹) *")),
               const SizedBox(height: 12),
               TextField(controller: advanceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Security Deposit Paid (₹)")),
               const SizedBox(height: 16),
-              ElevatedButton(onPressed: _saveNewRegistration, child: const Text("Save Member", style: TextStyle(color: Colors.white))),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white),
+                onPressed: _saveNewRegistration, 
+                child: const Text("Save & Send Welcome Rules", style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
             ],
           ),
         ),
@@ -556,28 +1002,91 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   }
 
   Widget _buildRegisteredListView() {
+    List<Map<String, dynamic>> filtered = renters;
+    if (listFilter == 'Student') filtered = renters.where((r) => r['pType'] == 'Student' && r['isClosed'] != true).toList();
+    if (listFilter == 'Renter') filtered = renters.where((r) => r['pType'] == 'Renter' && r['isClosed'] != true).toList();
+    if (listFilter == 'Hostel') filtered = renters.where((r) => r['pType'] == 'Hostel' && r['isClosed'] != true).toList();
+    if (listFilter == 'Closed') filtered = renters.where((r) => r['isClosed'] == true).toList();
+
     return Column(
       children: [
         Container(
           color: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [_buildFilterChip("All", 'all'), const SizedBox(width: 6), _buildFilterChip("🎓 Students", 'Student'), const SizedBox(width: 6), _buildFilterChip("🏠 Renters", 'Renter')])),
+          child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
+            _buildFilterChip("All", 'all'), const SizedBox(width: 6),
+            _buildFilterChip("🎓 Students", 'Student'), const SizedBox(width: 6),
+            _buildFilterChip("🏢 Hostel", 'Hostel'), const SizedBox(width: 6),
+            _buildFilterChip("🏠 Renters", 'Renter'), const SizedBox(width: 6),
+            _buildFilterChip("Closed", 'Closed'),
+          ])),
         ),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 8), itemCount: renters.length,
-            itemBuilder: (ctx, i) {
-              final r = renters[i];
-              return Card(
-                margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6), elevation: 0, color: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: Colors.grey.shade200, width: 1.5)),
-                child: ListTile(
-                  title: Text(r['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text("📱 ${r['mobile']} \nRent: ₹${r['rent']}"),
-                  trailing: IconButton(icon: const Icon(Icons.edit_note_rounded, color: Color(0xFF0EA5E9)), onPressed: () => _showEditDialog(r)),
+          child: filtered.isEmpty
+              ? const Center(child: Text("No members found."))
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 8), itemCount: filtered.length,
+                  itemBuilder: (ctx, i) {
+                    final r = filtered[i];
+                    bool isStudent = (r['pType'] == 'Student');
+                    double due = _getAccurateUnpaidDue(r);
+                    return Card(
+                      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6), elevation: 0, color: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: due > 0 ? Colors.red.shade200 : Colors.green.shade200, width: 1.5)),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(r['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                IconButton(icon: const Icon(Icons.edit, size: 18, color: Color(0xFF0F766E)), onPressed: () => _showEditDialog(r)),
+                              ],
+                            ),
+                            Text("📱 ${r['mobile']} | Due: ₹$due"),
+                            const Divider(height: 12),
+                            Wrap(
+                              spacing: 6,
+                              children: [
+                                ElevatedButton.icon(
+                                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
+                                  icon: const Icon(Icons.receipt, size: 14),
+                                  label: const Text("Bill", style: TextStyle(fontSize: 11)),
+                                  onPressed: () {
+                                    if (isStudent) {
+                                      _openStudentGenerateBillDialog(r);
+                                    } else {
+                                      _showRenterOrHostelBillOptionDialog(r);
+                                    }
+                                  },
+                                ),
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
+                                  icon: const Icon(Icons.history, size: 14, color: Colors.teal),
+                                  label: Text("History (${(r['history'] ?? []).length})", style: const TextStyle(fontSize: 11)),
+                                  onPressed: () => _showHistoryDialog(r),
+                                ),
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
+                                  icon: const Icon(Icons.description, size: 14, color: Colors.blue),
+                                  label: const Text("Doc", style: TextStyle(fontSize: 11)),
+                                  onPressed: () => _sharePoliceVerificationForm(r),
+                                ),
+                                OutlinedButton.icon(
+                                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
+                                  icon: const Icon(Icons.exit_to_app, size: 14),
+                                  label: const Text("Close", style: TextStyle(fontSize: 11)),
+                                  onPressed: () => _openCloseAccountDialog(r),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
@@ -593,8 +1102,8 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text("💸 Expenses: ₹${totalExpenseAmt.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFF43F5E))),
-              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFF43F5E), foregroundColor: Colors.white), onPressed: _openAddExpenseDialog, icon: const Icon(Icons.add, size: 16), label: const Text("Add Expense")),
+              Text("💸 Expenses: ₹${totalExpenseAmt.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFE11D48))),
+              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE11D48), foregroundColor: Colors.white), onPressed: _openAddExpenseDialog, icon: const Icon(Icons.add, size: 16), label: const Text("Add Expense")),
             ],
           ),
           const Divider(height: 28),
@@ -602,11 +1111,22 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text("🛠️ Issues (${complaints.length})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1E293B), foregroundColor: Colors.white), onPressed: _openAddComplaintDialog, icon: const Icon(Icons.report_problem_rounded, size: 16), label: const Text("Log Issue")),
+              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F766E), foregroundColor: Colors.white), onPressed: _openAddComplaintDialog, icon: const Icon(Icons.report_problem, size: 16), label: const Text("Log Issue")),
             ],
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFilterChip(String label, String value) {
+    bool isSelected = (listFilter == value);
+    return ChoiceChip(
+      label: Text(label, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? Colors.white : Colors.black87)),
+      selected: isSelected,
+      selectedColor: const Color(0xFF0F766E),
+      backgroundColor: const Color(0xFFF1F5F9),
+      onSelected: (_) => setState(() => listFilter = value),
     );
   }
 }
