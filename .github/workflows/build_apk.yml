@@ -1,115 +1,52 @@
-name: Build Direct Installable Universal APK
+name: Build Flutter APK (Detailed Logs)
 
 on:
   push:
-    branches: [ main ]
-  workflow_dispatch:
+    branches:
+      - main
+      - master # Aapki branch main ho ya master, dono par kaam karega
 
 jobs:
   build:
+    name: Build & Check APK
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout Code
+      # 1. Code ko GitHub se uthana
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+      # 2. Java setup (Android build ke liye sabse stable version 17 hai)
+      - name: Setup Java
+        uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
 
+      # 3. Flutter Environment Setup
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.x'
+          flutter-version: '3.19.0' # Stable version
           channel: 'stable'
 
-      # 1. Generate Clean Android Platform
-      - name: Create Android Platform
-        run: flutter create . --project-name rent_manager --platforms=android --org com.app.rentmanager
+      # 4. 🔍 System Check (Agar koi dikkat hogi toh yahan saaf bata dega)
+      - name: Flutter System Check
+        run: flutter doctor -v
 
-      # 2. Inject Package Installer & Storage Permissions (The ZArchiver Fix)
-      - name: Configure Android Permissions & WhatsApp Queries
-        run: |
-          python3 -c "
-          manifest_path = 'android/app/src/main/AndroidManifest.xml'
-          with open(manifest_path, 'r') as f:
-              content = f.read()
-
-          permissions = '''
-              <uses-permission android:name=\"android.permission.INTERNET\" />
-              <uses-permission android:name=\"android.permission.READ_EXTERNAL_STORAGE\" />
-              <uses-permission android:name=\"android.permission.WRITE_EXTERNAL_STORAGE\" />
-              <uses-permission android:name=\"android.permission.REQUEST_INSTALL_PACKAGES\" />
-          '''
-          
-          queries = '''
-              <queries>
-                  <package android:name=\"com.whatsapp\" />
-                  <package android:name=\"com.whatsapp.w4b\" />
-                  <intent>
-                      <action android:name=\"android.intent.action.VIEW\" />
-                      <data android:scheme=\"https\" />
-                  </intent>
-                  <intent>
-                      <action android:name=\"android.intent.action.VIEW\" />
-                      <data android:scheme=\"whatsapp\" />
-                  </intent>
-              </queries>
-          '''
-          
-          if '<uses-permission' not in content:
-              content = content.replace('<application', permissions + '\n    <application')
-          
-          if '<queries>' not in content:
-              content = content.replace('<application', queries + '\n    <application')
-          
-          with open(manifest_path, 'w') as f:
-              f.write(content)
-          "
-
-      # 3. Configure Official Release Signing in build.gradle
-      - name: Configure Gradle Signing & MinSDK
-        run: |
-          # Generate Official Release Keystore
-          keytool -genkeypair -v -keystore android/app/release.jks -alias rentkey -keyalg RSA -keysize 2048 -validity 10000 -storepass rentmanager123 -keypass rentmanager123 -dname "CN=RentManager, O=App, C=IN"
-
-          python3 -c "
-          gradle_path = 'android/app/build.gradle'
-          with open(gradle_path, 'r') as f:
-              content = f.read()
-          
-          signing_config = '''
-              signingConfigs {
-                  release {
-                      storeFile file('release.jks')
-                      storePassword 'rentmanager123'
-                      keyAlias 'rentkey'
-                      keyPassword 'rentmanager123'
-                  }
-              }
-          '''
-          
-          if 'signingConfigs {' not in content:
-              content = content.replace('buildTypes {', signing_config + '\n    buildTypes {')
-          
-          content = content.replace('signingConfig = signingConfigs.debug', 'signingConfig = signingConfigs.release')
-          
-          with open(gradle_path, 'w') as f:
-              f.write(content)
-          "
-
-      # 4. Fetch Dependencies
-      - name: Get Dependencies
+      # 5. Packages Install karna
+      - name: Install Dependencies
         run: flutter pub get
 
-      # 5. Build Signed Universal Release APK
-      - name: Build Official Universal Release APK
-        run: flutter build apk --release --no-tree-shake-icons
+      # 6. ⚙️ APK Build karna (Detailed/Verbose mode ke sath)
+      # Yahan '-v' lagaya hai jisse ek-ek process ka log dikhega. 
+      # Agar error aayega toh exact reason batayega, seedha cancel nahi hoga.
+      - name: Build APK (with Error Logs)
+        run: flutter build apk --release -v
 
-      # 6. Upload Final Installable APK
-      - name: Upload Final APK
+      # 7. APK ko Download ke liye Upload karna (Sirf tab chalega jab build success ho)
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: RentManager-Direct-Install-APK
+          name: RentManager-Pro-APK
           path: build/app/outputs/flutter-apk/app-release.apk
