@@ -27,13 +27,13 @@ jobs:
           flutter-version: '3.19.0' 
           channel: 'stable'
 
-      - name: Flutter System Check
-        run: flutter doctor
-
       - name: Install Dependencies
         run: flutter pub get
 
-      # YAHAN SE MENE '-v' HATA DIYA HAI 👇
+      # 👇 YE HAI MAGIC FIX - Jo missing Android files khud bana dega
+      - name: Fix Android Gradle Issue
+        run: flutter create .
+
       - name: Build APK
         run: flutter build apk --release
 
