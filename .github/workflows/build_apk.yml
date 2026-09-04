@@ -1,4 +1,4 @@
-name: Build Flutter APK
+name: Build Flutter APK & Debug
 
 on:
   push:
@@ -8,36 +8,46 @@ on:
 
 jobs:
   build:
-    name: Build & Check APK
+    name: Build Flutter APK
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
+      # 1. Repository Checkout
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Java
+      # 2. Setup Java (Required for Android)
+      - name: Set up Java
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      - name: Setup Flutter
+      # 3. Setup Flutter SDK
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0' 
+          flutter-version: '3.19.0'
           channel: 'stable'
 
+      # 4. Flutter Doctor (Check for any environment issues)
+      - name: Check Flutter Environment
+        run: flutter doctor
+
+      # 5. Get Dependencies
       - name: Install Dependencies
         run: flutter pub get
 
-      # 🔥 YAHAN CHANGE KIYA HAI 🔥
-      - name: Fix Android Gradle Issue
+      # 6. Fix Android Gradle Structure if missing
+      - name: Ensure Android Directory Exists
         run: flutter create --project-name rent_manager .
 
-      - name: Build APK
-        run: flutter build apk --release
+      # 7. Build APK with Verbose Logging (Shows exact reason if it fails)
+      - name: Build Release APK
+        run: flutter build apk --release --verbose
 
-      - name: Upload APK
+      # 8. Upload APK Artifact
+      - name: Upload APK File
         uses: actions/upload-artifact@v4
         with:
           name: RentManager-Pro-APK
