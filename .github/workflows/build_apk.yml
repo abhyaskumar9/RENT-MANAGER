@@ -1,10 +1,10 @@
-name: Build Flutter APK (Detailed Logs)
+name: Build Flutter APK
 
 on:
   push:
     branches:
       - main
-      - master # Aapki branch main ho ya master, dono par kaam karega
+      - master
 
 jobs:
   build:
@@ -12,39 +12,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1. Code ko GitHub se uthana
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2. Java setup (Android build ke liye sabse stable version 17 hai)
       - name: Setup Java
         uses: actions/setup-java@v3
         with:
           distribution: 'zulu'
           java-version: '17'
 
-      # 3. Flutter Environment Setup
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.19.0' # Stable version
+          flutter-version: '3.19.0' 
           channel: 'stable'
 
-      # 4. 🔍 System Check (Agar koi dikkat hogi toh yahan saaf bata dega)
       - name: Flutter System Check
-        run: flutter doctor -v
+        run: flutter doctor
 
-      # 5. Packages Install karna
       - name: Install Dependencies
         run: flutter pub get
 
-      # 6. ⚙️ APK Build karna (Detailed/Verbose mode ke sath)
-      # Yahan '-v' lagaya hai jisse ek-ek process ka log dikhega. 
-      # Agar error aayega toh exact reason batayega, seedha cancel nahi hoga.
-      - name: Build APK (with Error Logs)
-        run: flutter build apk --release -v
+      # YAHAN SE MENE '-v' HATA DIYA HAI 👇
+      - name: Build APK
+        run: flutter build apk --release
 
-      # 7. APK ko Download ke liye Upload karna (Sirf tab chalega jab build success ho)
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
