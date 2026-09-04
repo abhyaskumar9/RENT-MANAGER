@@ -30,9 +30,9 @@ jobs:
       - name: Install Dependencies
         run: flutter pub get
 
-      # 👇 YE HAI MAGIC FIX - Jo missing Android files khud bana dega
+      # 🔥 YAHAN CHANGE KIYA HAI 🔥
       - name: Fix Android Gradle Issue
-        run: flutter create .
+        run: flutter create --project-name rent_manager .
 
       - name: Build APK
         run: flutter build apk --release
