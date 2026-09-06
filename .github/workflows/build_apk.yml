@@ -1,54 +1,28 @@
-name: Build Flutter APK & Debug
+name: rent_manager_pro
+description: "A comprehensive Rent and Hostel Management Enterprise Application."
+publish_to: 'none'
 
-on:
-  push:
-    branches:
-      - main
-      - master
+version: 1.0.0+1
 
-jobs:
-  build:
-    name: Build Flutter APK
-    runs-on: ubuntu-latest
+environment:
+  sdk: '>=3.0.0 <4.0.0'
 
-    steps:
-      # 1. Repository Checkout
-      - name: Checkout Code
-        uses: actions/checkout@v4
+dependencies:
+  flutter:
+    sdk: flutter
 
-      # 2. Setup Java (Required for Android)
-      - name: Set up Java
-        uses: actions/setup-java@v3
-        with:
-          distribution: 'zulu'
-          java-version: '17'
+  cupertino_icons: ^1.0.6
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.6
+  image_picker: ^1.1.0
+  file_picker: ^8.0.0
+  path_provider: ^2.1.2
+  share_plus: ^8.0.2
 
-      # 3. Setup Flutter SDK
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          flutter-version: '3.19.0'
-          channel: 'stable'
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
 
-      # 4. Flutter Doctor (Check for any environment issues)
-      - name: Check Flutter Environment
-        run: flutter doctor
-
-      # 5. Get Dependencies
-      - name: Install Dependencies
-        run: flutter pub get
-
-      # 6. Fix Android Gradle Structure if missing
-      - name: Ensure Android Directory Exists
-        run: flutter create --project-name rent_manager .
-
-      # 7. Build APK with Verbose Logging (Shows exact reason if it fails)
-      - name: Build Release APK
-        run: flutter build apk --release --verbose
-
-      # 8. Upload APK Artifact
-      - name: Upload APK File
-        uses: actions/upload-artifact@v4
-        with:
-          name: RentManager-Pro-APK
-          path: build/app/outputs/flutter-apk/app-release.apk
+flutter:
+  uses-material-design: true
