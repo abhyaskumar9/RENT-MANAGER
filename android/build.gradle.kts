@@ -20,7 +20,6 @@ subprojects {
         configure<com.android.build.api.dsl.ApplicationExtension> {
             compileSdk = 34
             defaultConfig {
-                targetSdk = 34
             }
         }
     }
@@ -28,7 +27,6 @@ subprojects {
         configure<com.android.build.api.dsl.LibraryExtension> {
             compileSdk = 34
             defaultConfig {
-                targetSdk = 34
             }
         }
     }
