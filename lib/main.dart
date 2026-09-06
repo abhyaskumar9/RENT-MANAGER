@@ -48,7 +48,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   String listFilter = 'all';
 
   // Form Controllers
-  String personType = 'Student'; // 'Student', 'Renter', 'Hostel'
+  String personType = 'Student'; 
   final nameCtrl = TextEditingController();
   final mobileCtrl = TextEditingController();
   final parentMobileCtrl = TextEditingController();
@@ -61,13 +61,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   final initialReadingCtrl = TextEditingController(text: '0');
   
   DateTime rentEntryDate = DateTime.now();
-  DateTime elecStartDate = DateTime.now();
-  DateTime securityDate = DateTime.now(); 
   
-  String? studentImgBase64;
-  String? idCardImgBase64;
-  String sendToTarget = 'student';
-
   // Owner Profile Controllers
   final ownerNameCtrl = TextEditingController();
   final ownerEmailCtrl = TextEditingController();
@@ -79,8 +73,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   final studentWelcomeRulesCtrl = TextEditingController();
   final renterWelcomeRulesCtrl = TextEditingController();
   String? ownerPhotoBase64;
-
-  final ImagePicker _picker = ImagePicker();
 
   @override
   void initState() {
@@ -115,77 +107,12 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       ownerUpiNumCtrl.text = ownerProfile['upiNum'] ?? '';
       defaultUnitRateCtrl.text = ownerProfile['unitRate'] ?? '8';
       propertyNameCtrl.text = ownerProfile['propertyName'] ?? 'My Hostel / Institute';
-      ownerPhotoBase64 = ownerProfile['photo'];
-      studentWelcomeRulesCtrl.text = ownerProfile['studentRules'] ??
-          "🎓 *STUDENT & HOSTEL RULES*\n1. Monthly fee/rent due every 30 days.\n2. Keep premises clean.\n3. Follow silent hours.";
-      renterWelcomeRulesCtrl.text = ownerProfile['renterRules'] ??
-          "🏠 *RENTER RULES*\n1. Room rent due monthly.\n2. Electricity meter reading cycle starts from 1st.";
-    }
-    
-    await _checkAndGenerateAutoBills();
-  }
-
-  Future<void> _checkAndGenerateAutoBills() async {
-    DateTime now = DateTime.now();
-    bool dataChanged = false;
-
-    for (var r in renters) {
-      if (r['isClosed'] == true) continue;
-      
-      try {
-        DateTime dueDate = DateTime.parse(r['nextDueDate']);
-        
-        while (now.isAfter(dueDate) || now.isAtSameMomentAs(dueDate)) {
-          double rent = (r['rent'] as num).toDouble();
-          double backDue = _getAccurateUnpaidDue(r, category: 'rent');
-          double netPayable = rent + backDue;
-          
-          String dateStr = "${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}";
-          
-          r['history'].add({
-            'date': dateStr,
-            'type': 'Auto Generated Monthly Bill',
-            'unitsUsed': 0,
-            'elecBill': 0.0,
-            'rentAmount': rent,
-            'backDue': backDue,
-            'advanceUsed': 0.0,
-            'totalPayable': netPayable,
-            'paidAmount': 0.0,
-            'paymentDate': '-',
-            'status': 'Pending',
-            'paymentLogs': [] 
-          });
-
-          dueDate = dueDate.add(const Duration(days: 30));
-          r['nextDueDate'] = "${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}";
-          
-          dataChanged = true;
-        }
-      } catch (e) {
-        // error handling
-      }
-    }
-
-    if (dataChanged) {
-      if (mounted) setState(() {});
-      await _saveRentersToStorage();
     }
   }
 
   Future<void> _saveRentersToStorage() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('renters_db', json.encode(renters));
-  }
-
-  Future<void> _saveExpensesToStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('expenses_db', json.encode(expenses));
-  }
-
-  Future<void> _saveComplaintsToStorage() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('complaints_db', json.encode(complaints));
   }
 
   Future<void> _saveOwnerProfile() async {
@@ -198,151 +125,223 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       'upiNum': ownerUpiNumCtrl.text,
       'unitRate': defaultUnitRateCtrl.text,
       'propertyName': propertyNameCtrl.text,
-      'photo': ownerPhotoBase64,
-      'studentRules': studentWelcomeRulesCtrl.text,
-      'renterRules': renterWelcomeRulesCtrl.text,
     };
     await prefs.setString('owner_profile', json.encode(ownerProfile));
     if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile & Settings Saved!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile Saved!")));
     }
-  }
-
-  Future<void> _pickImage(String type) async {
-    final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 60);
-    if (image != null) {
-      final bytes = await image.readAsBytes();
-      setState(() {
-        if (type == 'student') studentImgBase64 = base64Encode(bytes);
-        if (type == 'idCard') idCardImgBase64 = base64Encode(bytes);
-        if (type == 'owner') ownerPhotoBase64 = base64Encode(bytes);
-      });
-    }
-  }
-
-  Future<DateTime?> _selectCustomDate(BuildContext context, DateTime initDate) async {
-    return await showDatePicker(
-      context: context,
-      initialDate: initDate,
-      firstDate: DateTime(2000),
-      lastDate: DateTime(2100),
-    );
   }
 
   void _sendWhatsApp(String phone, String text) async {
     String clean = phone.replaceAll(RegExp(r'[^0-9]'), '');
-    if (clean.isEmpty) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mobile number missing ya galat hai!")));
-      return;
-    }
-
-    if (clean.length == 10) {
-      clean = '91$clean';
-    } else if (clean.length == 11 && clean.startsWith('0')) {
-      clean = '91${clean.substring(1)}';
-    }
-
-    final encodedText = Uri.encodeComponent(text);
-    final Uri appIntent = Uri.parse("whatsapp://send?phone=$clean&text=$encodedText");
-    final Uri universalUrl = Uri.parse("https://api.whatsapp.com/send?phone=$clean&text=$encodedText");
-
-    bool launched = false;
+    if (clean.isEmpty) return;
+    if (clean.length == 10) clean = '91$clean';
+    final Uri appIntent = Uri.parse("whatsapp://send?phone=$clean&text=${Uri.encodeComponent(text)}");
     try {
-      launched = await launchUrl(appIntent, mode: LaunchMode.externalApplication);
+      await launchUrl(appIntent, mode: LaunchMode.externalApplication);
     } catch (_) {}
-
-    if (!launched) {
-      try {
-        launched = await launchUrl(universalUrl, mode: LaunchMode.externalApplication);
-      } catch (_) {}
-    }
-
-    if (!launched && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("WhatsApp open nahi ho saka. Kripya check karein.")),
-      );
-    }
   }
 
-  double _getAccurateUnpaidDue(Map<String, dynamic> item, {String category = 'all'}) {
+  double _getAccurateUnpaidDue(Map<String, dynamic> item) {
     List history = item['history'] ?? [];
     if (history.isEmpty) return 0.0;
-
     double totalDue = 0.0;
     for (var h in history) {
-      String t = (h['type'] ?? '').toString().toLowerCase();
-      bool match = true;
-      if (category == 'electricity') match = t.contains('electricity');
-      if (category == 'rent') match = t.contains('room rent') || t.contains('fee') || t.contains('hostel') || t.contains('auto generated');
-
-      if (match) {
-        double totalPayable = (h['totalPayable'] as num?)?.toDouble() ?? 0.0;
-        double backDue = (h['backDue'] as num?)?.toDouble() ?? 0.0;
-        double paidAmount = (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
-
-        double newChargeForThisMonth = totalPayable - backDue;
-        totalDue += newChargeForThisMonth; 
-        totalDue -= paidAmount;            
-      }
+      double totalPayable = (h['totalPayable'] as num?)?.toDouble() ?? 0.0;
+      double backDue = (h['backDue'] as num?)?.toDouble() ?? 0.0;
+      double paidAmount = (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
+      totalDue += (totalPayable - backDue);
+      totalDue -= paidAmount;
     }
     return totalDue > 0 ? double.parse(totalDue.toStringAsFixed(1)) : 0.0;
   }
 
-  void _sendBulkReminders() {
-    List<Map<String, dynamic>> unpaidList = renters.where((r) => r['isClosed'] != true && _getAccurateUnpaidDue(r) > 0).toList();
-    if (unpaidList.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Sabhi ka bill paid hai! Koi unpaid nahi mila.")));
-      return;
+  // --- RESTORED MISSING METHODS ---
+
+  void _exportJsonBackup() async {
+    Map<String, dynamic> fullData = {
+      'renters': renters,
+      'expenses': expenses,
+      'complaints': complaints,
+      'profile': ownerProfile,
+    };
+    final output = await getTemporaryDirectory();
+    final file = File("${output.path}/rent_manager_backup.json");
+    await file.writeAsString(json.encode(fullData));
+    await Share.shareXFiles([XFile(file.path)], text: 'Rent Manager Complete Data Backup (.JSON)');
+  }
+
+  void _importJsonBackup() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.any);
+    if (result != null && result.files.single.path != null) {
+      File file = File(result.files.single.path!);
+      String content = await file.readAsString();
+      try {
+        Map<String, dynamic> data = json.decode(content);
+        setState(() {
+          if (data['renters'] != null) renters = List<Map<String, dynamic>>.from(data['renters']);
+          if (data['expenses'] != null) expenses = List<Map<String, dynamic>>.from(data['expenses']);
+          if (data['complaints'] != null) complaints = List<Map<String, dynamic>>.from(data['complaints']);
+          if (data['profile'] != null) ownerProfile = Map<String, dynamic>.from(data['profile']);
+        });
+        await _saveRentersToStorage();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Data Restored Successfully!")));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invalid Backup File!")));
+      }
+    }
+  }
+
+  Widget _buildDashboardView() {
+    double totalCollected = 0.0;
+    double totalPendingDue = 0.0;
+    int activeResidents = 0;
+
+    for (var r in renters) {
+      if (r['isClosed'] != true) {
+        activeResidents++;
+        totalPendingDue += _getAccurateUnpaidDue(r);
+        if (r['history'] != null) {
+          for (var h in r['history']) {
+            totalCollected += (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
+          }
+        }
+      }
     }
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text("📢 Bulk Reminders (${unpaidList.length} Unpaid)"),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: unpaidList.length,
-            itemBuilder: (c, idx) {
-              final item = unpaidList[idx];
-              double due = _getAccurateUnpaidDue(item);
-              bool isStudent = (item['pType'] == 'Student');
-              String roomLabel = isStudent ? "Roll No: ${item['roomNo'] ?? 'N/A'}" : "Room: ${item['roomNo'] ?? 'N/A'}";
-
-              return ListTile(
-                dense: true,
-                title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text("$roomLabel | Total Due: ₹$due"),
-                trailing: IconButton(
-                  icon: const Icon(Icons.send, color: Color(0xFF25D366)),
-                  onPressed: () {
-                    String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
-                    String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
-                    String msg = "*📢 PAYMENT DUE REMINDER*\n--------------------\nName: ${item['name']}\n$roomLabel\n*Pending Due: ₹$due*\n--------------------\nKripya baki amount jald jama karein.\nUPI ID: $upi\nOwner: $oName\nDhanyawad!";
-                    _sendWhatsApp(item['mobile'], msg);
-                  },
-                ),
-              );
-            },
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(child: _buildMetricCard("💰 Total Collected", "₹${totalCollected.toStringAsFixed(0)}", Colors.green.shade800, Colors.green.shade50)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildMetricCard("⚠️ Market Due", "₹${totalPendingDue.toStringAsFixed(0)}", Colors.red.shade800, Colors.red.shade50)),
+            ],
           ),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close")),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _buildMetricCard("👥 Total Members", "$activeResidents Active", Colors.blue.shade900, Colors.blue.shade50)),
+            ],
+          ),
         ],
       ),
     );
   }
 
-  void _sharePoliceVerificationForm(Map<String, dynamic> item) {
-    String pName = propertyNameCtrl.text.isNotEmpty ? propertyNameCtrl.text : "Institute / Hostel";
-    String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Property Manager";
-    String oPhone = ownerPhoneCtrl.text.isNotEmpty ? ownerPhoneCtrl.text : "";
-    bool isStudent = (item['pType'] == 'Student');
+  Widget _buildRegisteredListView() {
+    return ListView.builder(
+      itemCount: renters.length,
+      itemBuilder: (ctx, i) {
+        final r = renters[i];
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: ListTile(
+            title: Text(r['name'] ?? 'No Name', style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text("Mobile: ${r['mobile']} | Rent: ₹${r['rent']}"),
+          ),
+        );
+      },
+    );
+  }
 
-    String verificationDoc = "==============================\n📋 MEMBER RECORD & VERIFICATION\n==============================\nProperty/Institute: $pName\n\n1. Full Name: ${item['name']}\n2. Category: ${item['pType']}\n3. ${isStudent ? 'Roll Number' : 'Room / Bed No'}: ${item['roomNo'] ?? 'N/A'}\n4. Mobile No: ${item['mobile']}\n5. Parents Mobile: ${item['parentMobile'] ?? 'N/A'}\n6. Father/Guardian Name: ${item['father'] ?? 'N/A'}\n7. Permanent Address: ${item['address'] ?? 'N/A'}\n8. ID / Document No: ${item['idNum'] ?? 'N/A'}\n9. Joining Date: ${item['entryDate']}\n10. Monthly Fee/Rent: ₹${item['rent']}\n11. Security Deposit: ₹${item['securityDeposit'] ?? 0}\n\nOwner / Manager: $oName\nContact: $oPhone\n==============================";
+  Widget _buildMetricCard(String title, String value, Color textCol, Color bgCol) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(color: bgCol, borderRadius: BorderRadius.circular(10), border: Border.all(color: textCol.withOpacity(0.3))),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textCol)),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textCol)),
+        ],
+      ),
+    );
+  }
 
-    Share.share(verificationDoc, subject: "Member Verification - ${item['name']}");
+  Widget _buildAddMemberView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text("Add New Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const SizedBox(height: 12),
+          TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Full Name *", border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: mobileCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile Number *", border: OutlineInputBorder())),
+          const SizedBox(height: 12),
+          TextField(controller: rentCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Monthly Rent/Fee (₹) *", border: OutlineInputBorder())),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF01579B)),
+            onPressed: () {
+              if (nameCtrl.text.trim().isEmpty || mobileCtrl.text.trim().isEmpty) return;
+              setState(() {
+                renters.add({
+                  'name': nameCtrl.text.trim(),
+                  'mobile': mobileCtrl.text.trim(),
+                  'rent': double.tryParse(rentCtrl.text) ?? 0.0,
+                  'history': []
+                });
+              });
+              _saveRentersToStorage();
+              nameCtrl.clear();
+              mobileCtrl.clear();
+              rentCtrl.clear();
+              _tabController.animateTo(2);
+            },
+            child: const Text("Save Member", style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsView() {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          const Text("⚙️ Owner & Property Settings", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          TextField(controller: propertyNameCtrl, decoration: const InputDecoration(labelText: "Property Name", border: OutlineInputBorder())),
+          const SizedBox(height: 10),
+          TextField(controller: ownerNameCtrl, decoration: const InputDecoration(labelText: "Owner Name", border: OutlineInputBorder())),
+          const SizedBox(height: 16),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF01579B)),
+            onPressed: _saveOwnerProfile,
+            child: const Text("Save Settings", style: TextStyle(color: Colors.white)),
+          ),
+          const Divider(height: 30),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _exportJsonBackup,
+                  icon: const Icon(Icons.download),
+                  label: const Text("Export Backup"),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _importJsonBackup,
+                  icon: const Icon(Icons.upload),
+                  label: const Text("Restore Backup"),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -376,117 +375,6 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             Tab(icon: Icon(Icons.settings), text: "Settings"),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAddMemberView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text("Select Member Type:", style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 6),
-          DropdownButtonFormField<String>(
-            value: personType,
-            decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10)),
-            items: const [
-              DropdownMenuItem(value: "Student", child: Text("🎓 Student / Coaching")),
-              DropdownMenuItem(value: "Hostel", child: Text("🏢 Hostel Resident")),
-              DropdownMenuItem(value: "Renter", child: Text("🏠 Room / Flat Renter")),
-            ],
-            onChanged: (v) => setState(() => personType = v!),
-          ),
-          const SizedBox(height: 12),
-          TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Full Name *", border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: mobileCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile Number *", border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          if (personType == 'Student' || personType == 'Hostel') ...[
-            TextField(controller: parentMobileCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Parents Mobile Number", border: OutlineInputBorder())),
-            const SizedBox(height: 12),
-          ],
-          TextField(controller: fatherCtrl, decoration: InputDecoration(labelText: personType == 'Student' ? "Father / Parents Name" : "Father / Husband Name", border: const OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: roomOrRollCtrl, decoration: InputDecoration(labelText: personType == 'Student' ? "Roll Number / Batch" : "Room / Bed Number", border: const OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: addressCtrl, decoration: const InputDecoration(labelText: "Permanent Address", border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: idNumCtrl, decoration: const InputDecoration(labelText: "ID / Document Number", border: OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: rentCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: personType == 'Student' ? "Monthly Fee (₹) *" : "Monthly Rent (₹) *", border: const OutlineInputBorder())),
-          const SizedBox(height: 12),
-          TextField(controller: advanceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Security Deposit Paid (₹)", border: OutlineInputBorder())),
-          if (personType == 'Renter' || personType == 'Hostel') ...[
-            const SizedBox(height: 12),
-            TextField(controller: initialReadingCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Initial Meter Reading (Units)", border: OutlineInputBorder())),
-          ],
-          const SizedBox(height: 20),
-          ElevatedButton.styleFrom(backgroundColor: const Color(0xFF01579B)).runtimeType == ElevatedButton ? ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF01579B), padding: const EdgeInsets.symmetric(vertical: 14)),
-            onPressed: () {
-              if (nameCtrl.text.trim().isEmpty || mobileCtrl.text.trim().isEmpty || rentCtrl.text.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Kripya Name, Mobile aur Monthly Fee/Rent dalein!")));
-                return;
-              }
-              // Save logic triggered
-            },
-            child: const Text("Save & Send Welcome WhatsApp", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-          ) : Container(),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSettingsView() {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text("⚙️ Owner & Property Settings", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          TextField(controller: propertyNameCtrl, decoration: const InputDecoration(labelText: "Property / Institute Name", border: OutlineInputBorder())),
-          const SizedBox(height: 10),
-          TextField(controller: ownerNameCtrl, decoration: const InputDecoration(labelText: "Owner Name", border: OutlineInputBorder())),
-          const SizedBox(height: 10),
-          TextField(controller: ownerPhoneCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Owner Phone", border: OutlineInputBorder())),
-          const SizedBox(height: 10),
-          TextField(controller: ownerUpiIdCtrl, decoration: const InputDecoration(labelText: "UPI ID (e.g. merchant@upi)", border: OutlineInputBorder())),
-          const SizedBox(height: 10),
-          TextField(controller: ownerUpiNumCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "UPI Mobile Number", border: OutlineInputBorder())),
-          const SizedBox(height: 10),
-          TextField(controller: defaultUnitRateCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Default Electricity Unit Rate (₹)", border: OutlineInputBorder())),
-          const SizedBox(height: 16),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF01579B), padding: const EdgeInsets.symmetric(vertical: 12)),
-            onPressed: _saveOwnerProfile,
-            child: const Text("Save Settings", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-          const Divider(height: 30),
-          const Text("Backup & Restore Data", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _exportJsonBackup,
-                  icon: const Icon(Icons.download),
-                  label: const Text("Export Backup"),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _importJsonBackup,
-                  icon: const Icon(Icons.upload),
-                  label: const Text("Restore Backup"),
-                ),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
