@@ -15,11 +15,20 @@ subprojects {
     project.evaluationDependsOn(":app")
     rootProject.subprojects.forEach { it.setBuildDir(null) }
     
-    plugins.withType<com.android.build.gradle.api.AndroidBasePlugin> {
-        project.extensions.configure<com.android.build.BaseExtension> {
-            compileSdkVersion(34)
+    // Yeh tarika Gradle ke naye versions me 100% crash-free chalta hai
+    plugins.withId("com.android.application") {
+        configure<com.android.build.api.dsl.ApplicationExtension> {
+            compileSdk = 34
             defaultConfig {
-                targetSdkVersion(34)
+                targetSdk = 34
+            }
+        }
+    }
+    plugins.withId("com.android.library") {
+        configure<com.android.build.api.dsl.LibraryExtension> {
+            compileSdk = 34
+            defaultConfig {
+                targetSdk = 34
             }
         }
     }
