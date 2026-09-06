@@ -13,7 +13,7 @@ if (pluginsFile.exists()) {
 
 subprojects {
     project.evaluationDependsOn(":app")
-    rootProject.subprojects.forEach { it.setBuildDir(null) }
+    // rootProject.subprojects.forEach { it.setBuildDir(null) }
     
     // Yeh tarika Gradle ke naye versions me 100% crash-free chalta hai
     plugins.withId("com.android.application") {
