@@ -19,38 +19,13 @@ class RentManagerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'RentManager Pro',
+      title: 'RentManager Pro Enterprise',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
+        colorSchemeSeed: const Color(0xFF01579B),
+        scaffoldBackgroundColor: const Color(0xFFF1F5F9),
         fontFamily: 'Roboto',
-        scaffoldBackgroundColor: const Color(0xFF0B132B), // Dark Luxury Background
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF1C2541),
-          primary: const Color(0xFFFFB703), // Elegant Gold/Amber Accent
-          surface: const Color(0xFF1C2541),
-        ),
-        inputDecorationTheme: InputDecorationTheme(
-          filled: true,
-          fillColor: const Color(0xFF1C2541),
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
-          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Colors.white12, width: 1)),
-          focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFFFB703), width: 2)),
-          labelStyle: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
-          hintStyle: const TextStyle(color: Colors.white38),
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            elevation: 4,
-            backgroundColor: const Color(0xFFFFB703),
-            foregroundColor: const Color(0xFF0B132B),
-            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        ),
-        dialogTheme: DialogTheme(shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)), backgroundColor: const Color(0xFF1C2541)),
-        bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Color(0xFF1C2541), shape: RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20)))),
       ),
       home: const MainHomeScreen(),
     );
@@ -72,25 +47,28 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   Map<String, dynamic> ownerProfile = {};
   String listFilter = 'all';
 
+  // Form Controllers
   String personType = 'Student'; // 'Student', 'Renter', 'Hostel'
   final nameCtrl = TextEditingController();
   final mobileCtrl = TextEditingController();
   final parentMobileCtrl = TextEditingController();
   final fatherCtrl = TextEditingController();
   final addressCtrl = TextEditingController();
-  final roomOrRollCtrl = TextEditingController();
+  final roomOrRollCtrl = TextEditingController(); 
   final idNumCtrl = TextEditingController();
   final rentCtrl = TextEditingController();
-  final advanceCtrl = TextEditingController(text: '0');
+  final advanceCtrl = TextEditingController(text: '0'); 
   final initialReadingCtrl = TextEditingController(text: '0');
   
   DateTime rentEntryDate = DateTime.now();
   DateTime elecStartDate = DateTime.now();
+  DateTime securityDate = DateTime.now(); 
   
   String? studentImgBase64;
   String? idCardImgBase64;
   String sendToTarget = 'student';
 
+  // Owner Profile Controllers
   final ownerNameCtrl = TextEditingController();
   final ownerEmailCtrl = TextEditingController();
   final ownerPhoneCtrl = TextEditingController();
@@ -118,9 +96,15 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     final complaintsData = prefs.getString('complaints_db');
     final profileData = prefs.getString('owner_profile');
 
-    if (rentersData != null) setState(() => renters = List<Map<String, dynamic>>.from(json.decode(rentersData)));
-    if (expensesData != null) setState(() => expenses = List<Map<String, dynamic>>.from(json.decode(expensesData)));
-    if (complaintsData != null) setState(() => complaints = List<Map<String, dynamic>>.from(json.decode(complaintsData)));
+    if (rentersData != null) {
+      setState(() => renters = List<Map<String, dynamic>>.from(json.decode(rentersData)));
+    }
+    if (expensesData != null) {
+      setState(() => expenses = List<Map<String, dynamic>>.from(json.decode(expensesData)));
+    }
+    if (complaintsData != null) {
+      setState(() => complaints = List<Map<String, dynamic>>.from(json.decode(complaintsData)));
+    }
 
     if (profileData != null) {
       ownerProfile = json.decode(profileData);
@@ -132,8 +116,62 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       defaultUnitRateCtrl.text = ownerProfile['unitRate'] ?? '8';
       propertyNameCtrl.text = ownerProfile['propertyName'] ?? 'My Hostel / Institute';
       ownerPhotoBase64 = ownerProfile['photo'];
-      studentWelcomeRulesCtrl.text = ownerProfile['studentRules'] ?? "🎓 *STUDENT & HOSTEL RULES*\n1. Monthly fee/rent due every 30 days.\n2. Keep premises clean.\n3. Follow silent hours.";
-      renterWelcomeRulesCtrl.text = ownerProfile['renterRules'] ?? "🏠 *RENTER RULES*\n1. Room rent due monthly.\n2. Electricity meter reading cycle starts from 1st.";
+      studentWelcomeRulesCtrl.text = ownerProfile['studentRules'] ??
+          "🎓 *STUDENT & HOSTEL RULES*\n1. Monthly fee/rent due every 30 days.\n2. Keep premises clean.\n3. Follow silent hours.";
+      renterWelcomeRulesCtrl.text = ownerProfile['renterRules'] ??
+          "🏠 *RENTER RULES*\n1. Room rent due monthly.\n2. Electricity meter reading cycle starts from 1st.";
+    }
+    
+    // Auto Bill Generation call on startup
+    await _checkAndGenerateAutoBills();
+  }
+
+  // Strictly +30 Days Logic (Handles Feb 28/29 Automatically)
+  Future<void> _checkAndGenerateAutoBills() async {
+    DateTime now = DateTime.now();
+    bool dataChanged = false;
+
+    for (var r in renters) {
+      if (r['isClosed'] == true) continue;
+      
+      try {
+        DateTime dueDate = DateTime.parse(r['nextDueDate']);
+        
+        while (now.isAfter(dueDate) || now.isAtSameMomentAs(dueDate)) {
+          double rent = (r['rent'] as num).toDouble();
+          double backDue = _getAccurateUnpaidDue(r, category: 'rent');
+          double netPayable = rent + backDue;
+          
+          String dateStr = "${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}";
+          
+          r['history'].add({
+            'date': dateStr,
+            'type': 'Auto Generated Monthly Bill',
+            'unitsUsed': 0,
+            'elecBill': 0.0,
+            'rentAmount': rent,
+            'backDue': backDue,
+            'advanceUsed': 0.0,
+            'totalPayable': netPayable,
+            'paidAmount': 0.0,
+            'paymentDate': '-',
+            'status': 'Pending',
+            'paymentLogs': [] 
+          });
+
+          dueDate = dueDate.add(const Duration(days: 30));
+          r['nextDueDate'] = "${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}";
+          
+          dataChanged = true;
+        }
+      } catch (e) {
+        // error handling
+      }
+    }
+
+    if (dataChanged) {
+      if (mounted) setState(() {});
+      await _saveRentersToStorage();
     }
   }
 
@@ -155,13 +193,21 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   Future<void> _saveOwnerProfile() async {
     final prefs = await SharedPreferences.getInstance();
     ownerProfile = {
-      'name': ownerNameCtrl.text, 'email': ownerEmailCtrl.text, 'phone': ownerPhoneCtrl.text,
-      'upiId': ownerUpiIdCtrl.text, 'upiNum': ownerUpiNumCtrl.text, 'unitRate': defaultUnitRateCtrl.text,
-      'propertyName': propertyNameCtrl.text, 'photo': ownerPhotoBase64,
-      'studentRules': studentWelcomeRulesCtrl.text, 'renterRules': renterWelcomeRulesCtrl.text,
+      'name': ownerNameCtrl.text,
+      'email': ownerEmailCtrl.text,
+      'phone': ownerPhoneCtrl.text,
+      'upiId': ownerUpiIdCtrl.text,
+      'upiNum': ownerUpiNumCtrl.text,
+      'unitRate': defaultUnitRateCtrl.text,
+      'propertyName': propertyNameCtrl.text,
+      'photo': ownerPhotoBase64,
+      'studentRules': studentWelcomeRulesCtrl.text,
+      'renterRules': renterWelcomeRulesCtrl.text,
     };
     await prefs.setString('owner_profile', json.encode(ownerProfile));
-    if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile & Settings Saved!")));
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Profile & Settings Saved!")));
+    }
   }
 
   Future<void> _pickImage(String type) async {
@@ -177,7 +223,12 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   }
 
   Future<DateTime?> _selectCustomDate(BuildContext context, DateTime initDate) async {
-    return await showDatePicker(context: context, initialDate: initDate, firstDate: DateTime(2000), lastDate: DateTime(2100));
+    return await showDatePicker(
+      context: context,
+      initialDate: initDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
   }
 
   void _sendWhatsApp(String phone, String text) async {
@@ -186,36 +237,58 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mobile number missing ya galat hai!")));
       return;
     }
-    if (clean.length == 10) clean = '91$clean';
-    else if (clean.length == 11 && clean.startsWith('0')) clean = '91${clean.substring(1)}';
+
+    if (clean.length == 10) {
+      clean = '91$clean';
+    } else if (clean.length == 11 && clean.startsWith('0')) {
+      clean = '91${clean.substring(1)}';
+    }
 
     final encodedText = Uri.encodeComponent(text);
     final Uri appIntent = Uri.parse("whatsapp://send?phone=$clean&text=$encodedText");
     final Uri universalUrl = Uri.parse("https://api.whatsapp.com/send?phone=$clean&text=$encodedText");
 
     bool launched = false;
-    try { launched = await launchUrl(appIntent, mode: LaunchMode.externalApplication); } catch (_) {}
-    if (!launched) { try { launched = await launchUrl(universalUrl, mode: LaunchMode.externalApplication); } catch (_) {} }
+    try {
+      launched = await launchUrl(appIntent, mode: LaunchMode.externalApplication);
+    } catch (_) {}
+
+    if (!launched) {
+      try {
+        launched = await launchUrl(universalUrl, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+    }
+
+    if (!launched && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("WhatsApp open nahi ho saka. Kripya check karein.")),
+      );
+    }
   }
 
+  // Partial Payment Double Counting issue solved here
   double _getAccurateUnpaidDue(Map<String, dynamic> item, {String category = 'all'}) {
     List history = item['history'] ?? [];
     if (history.isEmpty) return 0.0;
-    double due = 0.0;
+
+    double totalDue = 0.0;
     for (var h in history) {
       String t = (h['type'] ?? '').toString().toLowerCase();
       bool match = true;
       if (category == 'electricity') match = t.contains('electricity');
-      if (category == 'rent') match = t.contains('room rent') || t.contains('fee') || t.contains('hostel');
+      if (category == 'rent') match = t.contains('room rent') || t.contains('fee') || t.contains('hostel') || t.contains('auto generated');
 
       if (match) {
-        double total = (h['totalPayable'] as num?)?.toDouble() ?? 0.0;
-        double paid = (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
-        double remaining = total - paid;
-        if (remaining > 0) due += remaining;
+        double totalPayable = (h['totalPayable'] as num?)?.toDouble() ?? 0.0;
+        double backDue = (h['backDue'] as num?)?.toDouble() ?? 0.0;
+        double paidAmount = (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
+
+        double newChargeForThisMonth = totalPayable - backDue;
+        totalDue += newChargeForThisMonth; 
+        totalDue -= paidAmount;            
       }
     }
-    return due;
+    return totalDue > 0 ? double.parse(totalDue.toStringAsFixed(1)) : 0.0;
   }
 
   void _sendBulkReminders() {
@@ -228,7 +301,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text("📢 Bulk Reminders (${unpaidList.length} Unpaid)", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text("📢 Bulk Reminders (${unpaidList.length} Unpaid)"),
         content: SizedBox(
           width: double.maxFinite,
           child: ListView.builder(
@@ -242,14 +315,14 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
 
               return ListTile(
                 dense: true,
-                title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                subtitle: Text("$roomLabel | Total Due: ₹$due", style: const TextStyle(color: Colors.white70)),
+                title: Text(item['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                subtitle: Text("$roomLabel | Total Due: ₹$due"),
                 trailing: IconButton(
-                  icon: const Icon(Icons.send_rounded, color: Color(0xFF25D366)),
+                  icon: const Icon(Icons.send, color: Color(0xFF25D366)),
                   onPressed: () {
                     String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
                     String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
-                    String msg = "*📢 PAYMENT DUE REMINDER*\n--------------------\nName: ${item['name']}\n$roomLabel\n*Pending Due: ₹$due*\n--------------------\nKripya baki amount jald jama karein.\nUPI ID: $upi\nOwner: $oName";
+                    String msg = "*📢 PAYMENT DUE REMINDER*\n--------------------\nName: ${item['name']}\n$roomLabel\n*Pending Due: ₹$due*\n--------------------\nKripya baki amount jald jama karein.\nUPI ID: $upi\nOwner: $oName\nDhanyawad!";
                     _sendWhatsApp(item['mobile'], msg);
                   },
                 ),
@@ -257,7 +330,9 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
             },
           ),
         ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close", style: TextStyle(color: Color(0xFFFFB703))))],
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close")),
+        ],
       ),
     );
   }
@@ -268,7 +343,8 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     String oPhone = ownerPhoneCtrl.text.isNotEmpty ? ownerPhoneCtrl.text : "";
     bool isStudent = (item['pType'] == 'Student');
 
-    String verificationDoc = "==============================\n📋 MEMBER RECORD & VERIFICATION\n==============================\nProperty: $pName\n\n1. Full Name: ${item['name']}\n2. Category: ${item['pType']}\n3. ${isStudent ? 'Roll Number' : 'Room No'}: ${item['roomNo'] ?? 'N/A'}\n4. Mobile: ${item['mobile']}\n5. Parents Mobile: ${item['parentMobile'] ?? 'N/A'}\n6. Father Name: ${item['father'] ?? 'N/A'}\n7. Address: ${item['address'] ?? 'N/A'}\n8. ID No: ${item['idNum'] ?? 'N/A'}\n9. Joining Date: ${item['entryDate']}\n10. Monthly Rent/Fee: ₹${item['rent']}\n11. Security Deposit: ₹${item['securityDeposit'] ?? 0}\n\nOwner: $oName\nContact: $oPhone\n==============================";
+    String verificationDoc = "==============================\n📋 MEMBER RECORD & VERIFICATION\n==============================\nProperty/Institute: $pName\n\n1. Full Name: ${item['name']}\n2. Category: ${item['pType']}\n3. ${isStudent ? 'Roll Number' : 'Room / Bed No'}: ${item['roomNo'] ?? 'N/A'}\n4. Mobile No: ${item['mobile']}\n5. Parents Mobile: ${item['parentMobile'] ?? 'N/A'}\n6. Father/Guardian Name: ${item['father'] ?? 'N/A'}\n7. Permanent Address: ${item['address'] ?? 'N/A'}\n8. ID / Aadhaar / Doc No: ${item['idNum'] ?? 'N/A'}\n9. Joining Date: ${item['entryDate']}\n10. Monthly Fee/Rent: ₹${item['rent']}\n11. Security Deposit: ₹${item['securityDeposit'] ?? 0}\n\nOwner / Manager: $oName\nContact: $oPhone\n==============================";
+
     Share.share(verificationDoc, subject: "Member Verification - ${item['name']}");
   }
 
@@ -283,6 +359,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     String rentDateStr = "${rentEntryDate.year}-${rentEntryDate.month.toString().padLeft(2, '0')}-${rentEntryDate.day.toString().padLeft(2, '0')}";
     String elecDateStr = "${elecStartDate.year}-${elecStartDate.month.toString().padLeft(2, '0')}-${elecStartDate.day.toString().padLeft(2, '0')}";
     String nextDueDateStr = "${dueDate.year}-${dueDate.month.toString().padLeft(2, '0')}-${dueDate.day.toString().padLeft(2, '0')}";
+    String secDateStr = "${securityDate.year}-${securityDate.month.toString().padLeft(2, '0')}-${securityDate.day.toString().padLeft(2, '0')}";
 
     Map<String, dynamic> newEntry = {
       'id': DateTime.now().millisecondsSinceEpoch,
@@ -301,6 +378,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
       'nextDueDate': nextDueDateStr,
       'rent': double.tryParse(rentCtrl.text) ?? 0.0,
       'securityDeposit': double.tryParse(advanceCtrl.text) ?? 0.0,
+      'securityDate': secDateStr, 
       'extraWalletAdvance': 0.0,
       'prevReading': isRenterOrHostel ? (double.tryParse(initialReadingCtrl.text) ?? 0.0) : 0.0,
       'isClosed': false,
@@ -321,15 +399,33 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     String feeLabel = (personType == 'Student') ? "Monthly Fee" : "Monthly Rent";
     String roomLabel = (personType == 'Student') ? "Roll No" : "Room / Bed";
 
-    String msg = "Namaste ${nameCtrl.text.trim()} ji,\n\n$welcomeRules\n\n📌 Registration Details:\nCategory: $personType\n$roomLabel: ${roomOrRollCtrl.text.trim()}\nJoining Date: $rentDateStr\nNext Due Date: $nextDueDateStr\n$feeLabel: ₹${rentCtrl.text}\nSecurity Deposit Paid: ₹${advanceCtrl.text}\n\nOwner: $ownerName\nContact: $ownerPhone";
+    String msg = "Namaste ${nameCtrl.text.trim()} ji,\n\n$welcomeRules\n\n📌 Registration Details:\nCategory: $personType\n$roomLabel: ${roomOrRollCtrl.text.trim()}\nJoining Date: $rentDateStr\n${isRenterOrHostel ? 'Initial Meter Reading: ${initialReadingCtrl.text} Units\n' : ''}Next Due Date: $nextDueDateStr\n$feeLabel: ₹${rentCtrl.text}\nSecurity Deposit Paid: ₹${advanceCtrl.text}\n\nOwner: $ownerName\nContact: $ownerPhone";
 
-    String sendPhone = (sendToTarget == 'parents' && parentMobileCtrl.text.trim().isNotEmpty) ? parentMobileCtrl.text.trim() : mobileCtrl.text.trim();
+    String sendPhone = (sendToTarget == 'parents' && parentMobileCtrl.text.trim().isNotEmpty)
+        ? parentMobileCtrl.text.trim()
+        : mobileCtrl.text.trim();
+
     _sendWhatsApp(sendPhone, msg);
 
-    nameCtrl.clear(); mobileCtrl.clear(); parentMobileCtrl.clear(); fatherCtrl.clear(); addressCtrl.clear(); roomOrRollCtrl.clear(); idNumCtrl.clear(); rentCtrl.clear(); advanceCtrl.text = '0'; initialReadingCtrl.text = '0';
-    setState(() { rentEntryDate = DateTime.now(); elecStartDate = DateTime.now(); studentImgBase64 = null; idCardImgBase64 = null; });
+    nameCtrl.clear();
+    mobileCtrl.clear();
+    parentMobileCtrl.clear();
+    fatherCtrl.clear();
+    addressCtrl.clear();
+    roomOrRollCtrl.clear();
+    idNumCtrl.clear();
+    rentCtrl.clear();
+    advanceCtrl.text = '0';
+    initialReadingCtrl.text = '0';
+    setState(() {
+      rentEntryDate = DateTime.now();
+      elecStartDate = DateTime.now();
+      securityDate = DateTime.now();
+      studentImgBase64 = null;
+      idCardImgBase64 = null;
+    });
 
-    _tabController.animateTo(2);
+    _tabController.animateTo(2); 
   }
 
   void _showEditDialog(Map<String, dynamic> item) {
@@ -353,47 +449,32 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text("✏️ Edit: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+        title: Text("✏️ Edit: ${item['name']}"),
         content: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               TextField(controller: eName, decoration: const InputDecoration(labelText: "Full Name")),
-              const SizedBox(height: 10),
               TextField(controller: eMobile, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Mobile Number")),
-              if (isStudent || item['pType'] == 'Hostel') ...[
-                const SizedBox(height: 10),
+              if (isStudent || item['pType'] == 'Hostel')
                 TextField(controller: eParentMobile, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Parents Mobile Number")),
-              ],
-              const SizedBox(height: 10),
-              TextField(controller: eFather, decoration: const InputDecoration(labelText: "Father / Guardian Name")),
-              const SizedBox(height: 10),
+              TextField(controller: eFather, decoration: InputDecoration(labelText: isStudent ? "Father / Parents Name" : "Father / Husband / Guardian Name")),
               TextField(controller: eRoomNo, decoration: InputDecoration(labelText: isStudent ? "Student Roll Number" : "Room / Bed / Flat No.")),
-              const SizedBox(height: 10),
               TextField(controller: eAddress, decoration: const InputDecoration(labelText: "Address")),
-              const SizedBox(height: 10),
               TextField(controller: eEntryDate, decoration: InputDecoration(labelText: isStudent ? "Joining Date (YYYY-MM-DD)" : "Rent Entry Date (YYYY-MM-DD)")),
-              if (isRenterOrHostel) ...[
-                const SizedBox(height: 10),
+              if (isRenterOrHostel)
                 TextField(controller: eElecDate, decoration: const InputDecoration(labelText: "Electricity Cycle Date (YYYY-MM-DD)")),
-              ],
-              const SizedBox(height: 10),
               TextField(controller: eDueDate, decoration: const InputDecoration(labelText: "Next Due Date (YYYY-MM-DD)")),
-              const SizedBox(height: 10),
               TextField(controller: eRent, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: isStudent ? "Monthly Student Fee (₹)" : "Monthly Rent (₹)")),
-              const SizedBox(height: 10),
               TextField(controller: eSecurity, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Security Deposit Paid (₹)")),
-              if (isRenterOrHostel) ...[
-                const SizedBox(height: 10),
+              if (isRenterOrHostel)
                 TextField(controller: ePrevReading, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Meter Reading (Units)")),
-              ],
-              const SizedBox(height: 10),
               TextField(controller: eIdNum, decoration: const InputDecoration(labelText: "Identity / Document No")),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white70))),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
           ElevatedButton(
             onPressed: () {
               setState(() {
@@ -449,7 +530,7 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
           bool isRefund = netBalance >= 0;
 
           return AlertDialog(
-            title: Text("🚪 Final Settlement: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
+            title: Text("🚪 Final Settlement: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -457,14 +538,15 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                 children: [
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(color: const Color(0xFF0B132B), borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(8)),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("🗓 Joining Date: ${item['entryDate']}", style: const TextStyle(fontSize: 12, color: Colors.white70)),
-                        Text("🔒 Security Deposit: ₹$security", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFFFB703))),
-                        Text("⚠️ Unpaid Due: ₹$unpaidDue", style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFEF4444))),
+                        Text("🗓 Joining Date: ${item['entryDate']}"),
+                        Text("${isStudent ? 'Roll No' : 'Room/Bed'}: ${item['roomNo'] ?? 'N/A'}"),
+                        Text("🔒 Security Deposit: ₹$security", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                        Text("⚠️ Pichhla Baki (Unpaid Due): ₹$unpaidDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
                       ],
                     ),
                   ),
@@ -475,13 +557,13 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       if (p != null) setDialogState(() => leaveDate = p);
                     },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(color: const Color(0xFF0B132B), borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.white12)),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text("📅 Leaving Date: $leaveDateFormatted", style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white)),
-                          const Icon(Icons.calendar_month, color: Color(0xFFFFB703), size: 20),
+                          Text("📅 Leaving Date: $leaveDateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
+                          const Icon(Icons.calendar_month, color: Colors.red, size: 20),
                         ],
                       ),
                     ),
@@ -492,24 +574,35 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                       controller: finalReadingCtrl,
                       keyboardType: TextInputType.number,
                       onChanged: (_) => setDialogState(() {}),
-                      decoration: InputDecoration(labelText: "Final Meter Reading (Prev: $startUnits)"),
+                      decoration: InputDecoration(
+                        labelText: "Final Meter Reading (Purani: $startUnits)",
+                        border: const OutlineInputBorder(),
+                      ),
                     ),
+                    if (finalUnitsUsed > 0) ...[
+                      const SizedBox(height: 4),
+                      Text("Final Electricity Bill: $finalUnitsUsed x ₹$finalRate = ₹$finalElecBill", style: const TextStyle(fontSize: 12, color: Colors.brown, fontWeight: FontWeight.bold)),
+                    ],
                   ],
                   const SizedBox(height: 14),
                   Container(
                     width: double.infinity,
-                    padding: const EdgeInsets.all(14),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: isRefund ? const Color(0xFF064E3B).withOpacity(0.4) : const Color(0xFF7F1D1D).withOpacity(0.4),
-                      borderRadius: BorderRadius.circular(12),
+                      color: isRefund ? Colors.green.shade50 : Colors.red.shade50,
+                      borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: isRefund ? Colors.green : Colors.red, width: 1.5),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(isRefund ? "💰 REFUND TO MEMBER:" : "⚠️ COLLECT FROM MEMBER:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isRefund ? Colors.greenAccent : Colors.redAccent)),
+                        Text(
+                          isRefund ? "💰 TENANT/STUDENT KO WAPAS (REFUND) KARNA HAI:" : "⚠️ TENANT/STUDENT SE LENA (COLLECT) KARNA HAI:",
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: isRefund ? Colors.green.shade900 : Colors.red.shade900),
+                        ),
                         const SizedBox(height: 4),
-                        Text("₹${netBalance.abs().toStringAsFixed(1)}", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isRefund ? Colors.greenAccent : Colors.redAccent)),
+                        Text("₹${netBalance.abs().toStringAsFixed(1)}", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isRefund ? Colors.green.shade900 : Colors.red.shade900)),
+                        Text("Hisaab: Security (₹$security) - Total Due (₹$totalDueToPay)", style: const TextStyle(fontSize: 11, color: Colors.black54)),
                       ],
                     ),
                   ),
@@ -517,22 +610,38 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white70))),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
               ElevatedButton(
-                style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFC62828)),
                 onPressed: () {
                   Navigator.pop(ctx);
                   String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
-                  String settlementText = isRefund ? "*₹${netBalance.abs().toStringAsFixed(1)} Refund kiya gaya.*" : "*₹${netBalance.abs().toStringAsFixed(1)} Collect kiya gaya.*";
-                  String nocMsg = "*📜 FINAL SETTLEMENT NOTICE*\nName: ${item['name']}\nLeaving Date: $leaveDateFormatted\nSecurity: ₹$security\nTotal Due: ₹$totalDueToPay\n*RESULT:* $settlementText\n*Status: CLEARED & CLOSED ✅*\nOwner: $oName";
+                  String oPhone = ownerPhoneCtrl.text.isNotEmpty ? ownerPhoneCtrl.text : "";
+                  String settlementText = isRefund
+                      ? "*₹${netBalance.abs().toStringAsFixed(1)} Refund/Wapas kiya gaya.*"
+                      : "*₹${netBalance.abs().toStringAsFixed(1)} Collect/Liya gaya.*";
+
+                  String roomTag = isStudent ? "Roll No" : "Room/Bed";
+                  String nocMsg = "*📜 FINAL ACCOUNT SETTLEMENT / NOC NOTICE*\n--------------------\nName: ${item['name']}\nCategory: ${item['pType']}\n$roomTag: ${item['roomNo'] ?? 'N/A'}\nLeaving Date: $leaveDateFormatted\n--------------------\n• Security Deposit: ₹$security\n• Previous Due: ₹$unpaidDue\n${!isStudent ? '• Final Electricity Bill: ₹$finalElecBill\n' : ''}• Total Dues: ₹$totalDueToPay\n--------------------\n*RESULT:* $settlementText\n--------------------\n*Status: CLEARED & CLOSED ✅*\nVerified By: $oName ($oPhone)\nDhanyawad!";
+
                   setState(() {
                     item['isClosed'] = true;
                     item['closedDate'] = leaveDateFormatted;
+                    item['closureDetails'] = {
+                      'leaveDate': leaveDateFormatted,
+                      'security': security,
+                      'totalDue': totalDueToPay,
+                      'netBalance': netBalance,
+                      'isRefund': isRefund,
+                    };
                   });
                   _saveRentersToStorage();
                   _sendWhatsApp(item['mobile'], nocMsg);
+                  if (item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty) {
+                    _sendWhatsApp(item['parentMobile'], nocMsg);
+                  }
                 },
-                child: const Text("Confirm & Close Account"),
+                child: const Text("Confirm & Close Account", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -549,44 +658,113 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     double grossTotal = rent + backDue;
     double advanceUsed = (extraWallet > 0) ? (extraWallet >= grossTotal ? grossTotal : extraWallet) : 0.0;
     double netPayable = grossTotal - advanceUsed;
+    String target = 'both';
 
     showDialog(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (c, setDialogState) {
           String dateFormatted = "${selectedBillDate.year}-${selectedBillDate.month.toString().padLeft(2, '0')}-${selectedBillDate.day.toString().padLeft(2, '0')}";
+
           return AlertDialog(
-            title: Text("⚡ Fee Notice: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+            title: Text("⚡ Fee Notice: ${item['name']}"),
             content: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("Monthly Fee: ₹$rent", style: const TextStyle(color: Colors.white)),
-                  if (backDue > 0) Text("+ Back Due: ₹$backDue", style: const TextStyle(color: Colors.redAccent)),
-                  if (advanceUsed > 0) Text("- Advance Used: ₹$advanceUsed", style: const TextStyle(color: Colors.greenAccent)),
-                  const Divider(color: Colors.white24),
-                  Text("NET TOTAL: ₹$netPayable", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFFFFB703))),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Monthly Fee: ₹$rent", style: const TextStyle(fontWeight: FontWeight.w600)),
+                        if (backDue > 0)
+                          Text("+ Pichhla Baki (Due): ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                        if (advanceUsed > 0)
+                          Text("- Advance Adjusted: ₹$advanceUsed", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade800)),
+                        const Divider(height: 10),
+                        Text("NET TOTAL PAYABLE: ₹$netPayable", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      DateTime? p = await _selectCustomDate(context, selectedBillDate);
+                      if (p != null) setDialogState(() => selectedBillDate = p);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("📅 Bill Date: $dateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
+                          const Icon(Icons.calendar_month, color: Colors.blue, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  const Text("Kise Bhejna Hai WhatsApp Par?", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                  const SizedBox(height: 6),
+                  DropdownButtonFormField<String>(
+                    value: target,
+                    decoration: const InputDecoration(border: OutlineInputBorder(), contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 8)),
+                    items: [
+                      const DropdownMenuItem(value: "both", child: Text("1. Dono Ko (Student + Parents)")),
+                      const DropdownMenuItem(value: "student", child: Text("2. Sirf Student Ko")),
+                      if (item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty)
+                        const DropdownMenuItem(value: "parents", child: Text("3. Sirf Parents Ko")),
+                    ],
+                    onChanged: (v) => setDialogState(() => target = v!),
+                  ),
                 ],
               ),
             ),
             actions: [
-              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white70))),
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
               ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800),
                 onPressed: () {
                   Navigator.pop(ctx);
+                  String dateStr = dateFormatted;
+                  String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
                   String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
-                  String msg = "*🎓 STUDENT FEE NOTICE*\nName: ${item['name']}\nDate: $dateFormatted\n*TOTAL PAYABLE: ₹$netPayable*\nUPI: $upi";
+                  String upiNum = ownerUpiNumCtrl.text.isNotEmpty ? ownerUpiNumCtrl.text : "";
+                  String dueText = backDue > 0 ? "\n+ Back Due: ₹$backDue" : "";
+                  String advText = advanceUsed > 0 ? "\n- Advance Used: ₹$advanceUsed" : "";
+
+                  String msg = "*🎓 MONTHLY STUDENT FEE NOTICE*\n--------------------\nStudent: ${item['name']}\nRoll No: ${item['roomNo'] ?? 'N/A'}\nBill Date: $dateStr\n\nMonthly Fee: ₹$rent$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+
                   setState(() {
                     item['extraWalletAdvance'] = extraWallet - advanceUsed;
                     item['history'].add({
-                      'date': dateFormatted, 'type': 'Monthly Fee', 'totalPayable': netPayable, 'paidAmount': 0.0, 'paymentDate': '-', 'status': 'Pending', 'backDue': backDue, 'advanceUsed': advanceUsed, 'rentAmount': rent
+                      'date': dateStr,
+                      'type': 'Monthly Student Fee',
+                      'unitsUsed': 0,
+                      'elecBill': 0.0,
+                      'rentAmount': rent,
+                      'backDue': backDue,
+                      'advanceUsed': advanceUsed,
+                      'totalPayable': netPayable,
+                      'paidAmount': (netPayable == 0) ? 0.0 : 0.0,
+                      'paymentDate': (netPayable == 0) ? dateStr : '-',
+                      'status': (netPayable == 0) ? 'Paid' : 'Pending',
+                      'paymentLogs': [] 
                     });
                   });
                   _saveRentersToStorage();
-                  _sendWhatsApp(item['mobile'], msg);
+
+                  if (target == 'student' || target == 'both') _sendWhatsApp(item['mobile'], msg);
+                  if ((target == 'parents' || target == 'both') && item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty) {
+                    _sendWhatsApp(item['parentMobile'], msg);
+                  }
                 },
-                child: const Text("Generate & Send Bill"),
+                child: const Text("Generate & Send Bill", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
               ),
             ],
           );
@@ -598,31 +776,43 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   void _showRenterOrHostelBillOptionDialog(Map<String, dynamic> item) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text("⚡ Bill Options for ${item['name']}", style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+            Text("⚡ Bill Options for ${item['name']} (${item['pType']})", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 14),
             ElevatedButton.icon(
-              icon: const Icon(Icons.electric_bolt),
-              onPressed: () { Navigator.pop(ctx); _openElectricityCalculationDialog(item, isCombined: false); },
-              label: const Text("1. Electricity Bill Only"),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0288D1), padding: const EdgeInsets.symmetric(vertical: 12)),
+              icon: const Icon(Icons.electric_bolt, color: Colors.white),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _openElectricityCalculationDialog(item, isCombined: false);
+              },
+              label: const Text("1. Sirf Electricity Bill (Alag)", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             ElevatedButton.icon(
-              icon: const Icon(Icons.house_rounded),
-              onPressed: () { Navigator.pop(ctx); _openRentOnlyBill(item); },
-              label: const Text("2. Rent Bill Only"),
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), padding: const EdgeInsets.symmetric(vertical: 12)),
+              icon: const Icon(Icons.house, color: Colors.white),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _openRentOnlyBill(item);
+              },
+              label: Text(item['pType'] == 'Hostel' ? "2. Sirf Hostel Rent Bill (Alag)" : "2. Sirf Room Rent Bill (Alag)", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 8),
             ElevatedButton.icon(
-              icon: const Icon(Icons.receipt_long_rounded),
-              onPressed: () { Navigator.pop(ctx); _openElectricityCalculationDialog(item, isCombined: true); },
-              label: const Text("3. Combined Rent + Electricity"),
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800, padding: const EdgeInsets.symmetric(vertical: 12)),
+              icon: const Icon(Icons.receipt_long, color: Colors.white),
+              onPressed: () {
+                Navigator.pop(ctx);
+                _openElectricityCalculationDialog(item, isCombined: true);
+              },
+              label: Text(item['pType'] == 'Hostel' ? "3. Hostel Rent + Electricity (Combined)" : "3. Room Rent + Electricity (Combined)", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             ),
           ],
         ),
@@ -631,103 +821,504 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   }
 
   void _openRentOnlyBill(Map<String, dynamic> item) {
+    DateTime billDate = DateTime.now();
     double rent = (item['rent'] as num).toDouble();
     double backDue = _getAccurateUnpaidDue(item, category: 'rent');
-    double netPayable = rent + backDue;
-    String dateStr = DateTime.now().toString().split(' ')[0];
+    double extraWallet = (item['extraWalletAdvance'] as num?)?.toDouble() ?? 0.0;
+    double grossTotal = rent + backDue;
+    double advanceUsed = (extraWallet > 0) ? (extraWallet >= grossTotal ? grossTotal : extraWallet) : 0.0;
+    double netPayable = grossTotal - advanceUsed;
 
-    setState(() {
-      item['history'].add({
-        'date': dateStr, 'type': 'Rent Bill', 'totalPayable': netPayable, 'paidAmount': 0.0, 'paymentDate': '-', 'status': 'Pending', 'rentAmount': rent, 'backDue': backDue
-      });
-    });
-    _saveRentersToStorage();
-    _sendWhatsApp(item['mobile'], "*🏠 RENT BILL*\nName: ${item['name']}\n*TOTAL PAYABLE: ₹$netPayable*");
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) {
+          String dateFormatted = "${billDate.year}-${billDate.month.toString().padLeft(2, '0')}-${billDate.day.toString().padLeft(2, '0')}";
+          String billTitle = item['pType'] == 'Hostel' ? "Hostel Rent" : "Room Rent";
+
+          return AlertDialog(
+            title: Text("🏠 $billTitle Bill (${item['name']})"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(6)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("Monthly $billTitle: ₹$rent", style: const TextStyle(fontWeight: FontWeight.w600)),
+                        if (backDue > 0)
+                          Text("+ Pichhla Rent Due: ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                        if (advanceUsed > 0)
+                          Text("- Advance Adjusted: ₹$advanceUsed", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green.shade800)),
+                        const Divider(height: 10),
+                        Text("NET TOTAL PAYABLE: ₹$netPayable", style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      DateTime? p = await _selectCustomDate(context, billDate);
+                      if (p != null) setDialogState(() => billDate = p);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("📅 Rent Bill Date: $dateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
+                          const Icon(Icons.calendar_month, color: Colors.green, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  String dateStr = dateFormatted;
+                  String phone = item['mobile'];
+                  String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
+                  String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
+                  String upiNum = ownerUpiNumCtrl.text.isNotEmpty ? ownerUpiNumCtrl.text : "";
+                  String dueText = backDue > 0 ? "\n+ Pichhla Rent Due: ₹$backDue" : "";
+                  String advText = advanceUsed > 0 ? "\n- Advance Adjusted: ₹$advanceUsed" : "";
+
+                  String msg = "*🏠 MONTHLY $billTitle BILL*\n--------------------\nName: ${item['name']}\nRoom/Bed: ${item['roomNo'] ?? 'N/A'}\nBill Date: $dateStr\n$billTitle: ₹$rent$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+
+                  setState(() {
+                    item['extraWalletAdvance'] = extraWallet - advanceUsed;
+                    item['history'].add({
+                      'date': dateStr,
+                      'type': '$billTitle Bill',
+                      'unitsUsed': 0,
+                      'elecBill': 0.0,
+                      'rentAmount': rent,
+                      'backDue': backDue,
+                      'advanceUsed': advanceUsed,
+                      'totalPayable': netPayable,
+                      'paidAmount': (netPayable == 0) ? 0.0 : 0.0,
+                      'paymentDate': (netPayable == 0) ? dateStr : '-',
+                      'status': (netPayable == 0) ? 'Paid' : 'Pending',
+                      'paymentLogs': []
+                    });
+                  });
+                  _saveRentersToStorage();
+                  _sendWhatsApp(phone, msg);
+                },
+                child: const Text("Generate & Send Rent Bill", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 
   void _openElectricityCalculationDialog(Map<String, dynamic> item, {required bool isCombined}) {
     final currentReadingCtrl = TextEditingController();
     final rateCtrl = TextEditingController(text: defaultUnitRateCtrl.text.isNotEmpty ? defaultUnitRateCtrl.text : '8');
-    double startUnits = (item['prevReading'] as num?)?.toDouble() ?? 0.0;
+    DateTime customElecDate = DateTime.now();
+    double startUnits = (item['prevReading'] as num).toDouble();
+    double backDue = isCombined 
+        ? _getAccurateUnpaidDue(item, category: 'all')
+        : _getAccurateUnpaidDue(item, category: 'electricity');
+    double extraWallet = (item['extraWalletAdvance'] as num?)?.toDouble() ?? 0.0;
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(isCombined ? "📋 Combined Bill" : "⚡ Electricity Bill", style: const TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Previous Reading: $startUnits Units", style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: 10),
-            TextField(controller: currentReadingCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Current Reading *")),
-            const SizedBox(height: 10),
-            TextField(controller: rateCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Per Unit Rate (₹)")),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white70))),
-          ElevatedButton(
-            onPressed: () {
-              double endUnits = double.tryParse(currentReadingCtrl.text) ?? 0.0;
-              if (endUnits < startUnits) return;
-              Navigator.pop(ctx);
-              double rate = double.tryParse(rateCtrl.text) ?? 8.0;
-              double unitsUsed = endUnits - startUnits;
-              double elecBill = unitsUsed * rate;
-              double rent = isCombined ? (item['rent'] as num).toDouble() : 0.0;
-              double netPayable = elecBill + rent;
-              String dateStr = DateTime.now().toString().split(' ')[0];
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) {
+          String elecDateFormatted = "${customElecDate.year}-${customElecDate.month.toString().padLeft(2, '0')}-${customElecDate.day.toString().padLeft(2, '0')}";
+          String categoryLabel = item['pType'] == 'Hostel' ? 'Hostel Rent' : 'Room Rent';
 
-              setState(() {
-                item['prevReading'] = endUnits;
-                item['history'].add({
-                  'date': dateStr, 'type': isCombined ? 'Rent + Electricity' : 'Electricity Bill', 'unitsUsed': unitsUsed, 'elecBill': elecBill, 'totalPayable': netPayable, 'paidAmount': 0.0, 'status': 'Pending'
-                });
-              });
-              _saveRentersToStorage();
-              _sendWhatsApp(item['mobile'], "*⚡ ELECTRICITY BILL*\nConsumed: $unitsUsed Units\n*TOTAL PAYABLE: ₹$netPayable*");
-            },
-            child: const Text("Calculate & Send"),
-          ),
-        ],
+          return AlertDialog(
+            title: Text(isCombined ? "📋 Combined Bill (${item['name']})" : "⚡ Electricity Bill (${item['name']})"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("📌 Purani Reading: $startUnits Units", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                        if (isCombined)
+                          Text("🏠 $categoryLabel: ₹${item['rent']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
+                        if (backDue > 0)
+                          Text("+ Pichhla Baki (Due): ₹$backDue", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.deepOrange.shade800)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  InkWell(
+                    onTap: () async {
+                      DateTime? p = await _selectCustomDate(context, customElecDate);
+                      if (p != null) setDialogState(() => customElecDate = p);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("📅 Bill Date: $elecDateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
+                          const Icon(Icons.calendar_month, color: Colors.blue, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: currentReadingCtrl,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    decoration: const InputDecoration(labelText: "Nayi Current Reading Dalein *", border: OutlineInputBorder()),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: rateCtrl,
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(labelText: "Per Unit Rate (₹)", border: OutlineInputBorder()),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0288D1)),
+                onPressed: () {
+                  double endUnits = double.tryParse(currentReadingCtrl.text) ?? 0.0;
+                  if (endUnits < startUnits) {
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Nayi reading purani reading se kam nahi ho sakti!")));
+                    return;
+                  }
+                  Navigator.pop(ctx);
+
+                  double rate = double.tryParse(rateCtrl.text) ?? 8.0;
+                  double unitsUsed = endUnits - startUnits;
+                  double elecBill = unitsUsed * rate;
+                  double rent = isCombined ? (item['rent'] as num).toDouble() : 0.0;
+                  double grossTotal = elecBill + rent + backDue;
+
+                  double advanceUsed = (extraWallet > 0) ? (extraWallet >= grossTotal ? grossTotal : extraWallet) : 0.0;
+                  double netPayable = grossTotal - advanceUsed;
+
+                  String dateStr = elecDateFormatted;
+                  String phone = item['mobile'];
+                  String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
+                  String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
+                  String upiNum = ownerUpiNumCtrl.text.isNotEmpty ? ownerUpiNumCtrl.text : "";
+
+                  String billTitle = isCombined ? "MONTHLY ${item['pType'].toUpperCase()} & ELECTRICITY BILL" : "MONTHLY ELECTRICITY BILL";
+                  String dueText = backDue > 0 ? "\n+ Back Due: ₹$backDue" : "";
+                  String advText = advanceUsed > 0 ? "\n- Advance Adjusted: ₹$advanceUsed" : "";
+                  String rentText = isCombined ? "$categoryLabel: ₹$rent\n" : "";
+
+                  String msg = "*🏠 $billTitle*\n--------------------\nName: ${item['name']}\nRoom/Bed: ${item['roomNo'] ?? 'N/A'}\nBill Date: $dateStr\nPrevious Reading: $startUnits Units\nCurrent Reading: $endUnits Units\n*Consumed Units: $unitsUsed Units ($endUnits - $startUnits)*\nUnit Rate: ₹$rate / Unit\nElectricity Bill: $unitsUsed x ₹$rate = ₹$elecBill\n$rentText$dueText$advText--------------------\n*TOTAL PAYABLE: ₹$netPayable*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+
+                  setState(() {
+                    item['prevReading'] = endUnits; 
+                    item['elecDate'] = dateStr;
+                    item['extraWalletAdvance'] = extraWallet - advanceUsed;
+                    item['history'].add({
+                      'date': dateStr,
+                      'type': isCombined ? '${item['pType']} + Electricity Bill' : 'Electricity Bill',
+                      'startUnits': startUnits.toString(),
+                      'endUnits': endUnits.toString(),
+                      'unitsUsed': unitsUsed,
+                      'elecBill': elecBill,
+                      'rentAmount': rent,
+                      'backDue': backDue,
+                      'advanceUsed': advanceUsed,
+                      'totalPayable': netPayable,
+                      'paidAmount': (netPayable == 0) ? 0.0 : 0.0,
+                      'paymentDate': (netPayable == 0) ? dateStr : '-',
+                      'status': (netPayable == 0) ? 'Paid' : 'Pending',
+                      'paymentLogs': []
+                    });
+                  });
+                  _saveRentersToStorage();
+                  _sendWhatsApp(phone, msg);
+                },
+                child: const Text("Calculate & Send WhatsApp", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
 
   void _openPaymentRecordDialog(Map<String, dynamic> item, Map<String, dynamic> billRecord) {
     double total = (billRecord['totalPayable'] as num).toDouble();
-    final paidCtrl = TextEditingController();
+    double currentPaid = (billRecord['paidAmount'] as num?)?.toDouble() ?? 0.0;
+    DateTime paymentDate = DateTime.now();
+    final paidCtrl = TextEditingController(text: '');
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("💳 Record Payment", style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text("Total Bill: ₹$total", style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: 10),
-            TextField(controller: paidCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Amount Paid (₹) *")),
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) {
+          String pDateFormatted = "${paymentDate.year}-${paymentDate.month.toString().padLeft(2, '0')}-${paymentDate.day.toString().padLeft(2, '0')}";
+
+          return AlertDialog(
+            title: Text("💳 Payment Record: ${item['name']}"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(color: Colors.blue.shade50, borderRadius: BorderRadius.circular(6)),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text("📌 Bill Type: ${billRecord['type']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                        Text("📅 Bill Date: ${billRecord['date']}"),
+                        Text("💰 Total Bill: ₹$total", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blue.shade900)),
+                        if (currentPaid > 0)
+                           Text("✅ Pehle Jama Kiya Hai: ₹$currentPaid", style: const TextStyle(fontSize: 13, color: Colors.green, fontWeight: FontWeight.bold)),
+                        Text("⚠️ Abhi Baki Hai (Due): ₹${(total - currentPaid).clamp(0, double.infinity)}", style: const TextStyle(fontSize: 13, color: Colors.red, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  InkWell(
+                    onTap: () async {
+                      DateTime? p = await _selectCustomDate(context, paymentDate);
+                      if (p != null) setDialogState(() => paymentDate = p);
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+                      decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade400), borderRadius: BorderRadius.circular(4)),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text("📅 Aaj Payment Date: $pDateFormatted", style: const TextStyle(fontWeight: FontWeight.w500)),
+                          const Icon(Icons.calendar_month, color: Colors.green, size: 20),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: paidCtrl,
+                    keyboardType: TextInputType.number,
+                    autofocus: true,
+                    onChanged: (val) => setDialogState(() {}),
+                    decoration: const InputDecoration(labelText: "Aaj Kitna Jama Kiya (₹) *", border: OutlineInputBorder()),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00897B)),
+                onPressed: () {
+                  double newlyPaid = double.tryParse(paidCtrl.text) ?? 0.0;
+                  if (newlyPaid <= 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Amount dalein")));
+                      return;
+                  }
+                  Navigator.pop(ctx);
+                  
+                  double totalPaidTillNow = currentPaid + newlyPaid;
+                  double extra = (totalPaidTillNow > total) ? (totalPaidTillNow - total) : 0.0;
+                  double effectivePaid = (totalPaidTillNow > total) ? total : totalPaidTillNow;
+                  
+                  String newStatus = (totalPaidTillNow >= total) ? 'Paid' : 'Partial';
+
+                  setState(() {
+                    if (extra > 0) item['extraWalletAdvance'] = ((item['extraWalletAdvance'] as num?)?.toDouble() ?? 0.0) + extra;
+                    billRecord['paidAmount'] = effectivePaid;
+                    billRecord['paymentDate'] = pDateFormatted;
+                    billRecord['status'] = newStatus;
+
+                    List logs = billRecord['paymentLogs'] ?? [];
+                    logs.add({
+                      'date': pDateFormatted,
+                      'amount': newlyPaid
+                    });
+                    billRecord['paymentLogs'] = logs;
+                  });
+                  _saveRentersToStorage();
+
+                  String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
+                  String extraNote = extra > 0 ? "\n🎉 Extra ₹$extra Advance Wallet me add ho gaya hai." : "";
+                  String receiptMsg = "*🧾 PAYMENT ACKNOWLEDGEMENT / RECEIPT*\n--------------------\nName: ${item['name']}\nPayment Date: $pDateFormatted\nTotal Bill: ₹$total\n*Amount Paid: ₹$newlyPaid*\n*Remaining Due: ₹${(total - effectivePaid).clamp(0, double.infinity)}*$extraNote\nStatus: $newStatus\n--------------------\nReceived By: $oName\nDhanyawad!";
+                  _sendWhatsApp(item['mobile'], receiptMsg);
+                },
+                child: const Text("Save & Send Receipt", style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  void _openResendChoiceDialog(Map<String, dynamic> item, Map<String, dynamic> billRecord) {
+    bool isStudent = (item['pType'] == 'Student');
+    String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
+    String upi = ownerUpiIdCtrl.text.isNotEmpty ? ownerUpiIdCtrl.text : "Not Set";
+    String upiNum = ownerUpiNumCtrl.text.isNotEmpty ? ownerUpiNumCtrl.text : "";
+    double total = (billRecord['totalPayable'] as num).toDouble();
+    double backDue = (billRecord['backDue'] as num?)?.toDouble() ?? 0.0;
+    double advUsed = (billRecord['advanceUsed'] as num?)?.toDouble() ?? 0.0;
+    String dueText = backDue > 0 ? "\n+ Back Due: ₹$backDue" : "";
+    String advText = advUsed > 0 ? "\n- Advance Used: ₹$advUsed" : "";
+    String roomTag = isStudent ? "Roll No" : "Room/Bed";
+
+    String msg = "";
+    if (isStudent) {
+      msg = "*🎓 MONTHLY STUDENT FEE NOTICE (REMINDER)*\n--------------------\nStudent: ${item['name']}\n$roomTag: ${item['roomNo'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\n\nMonthly Fee: ₹${billRecord['rentAmount']}$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+    } else {
+      String type = billRecord['type'] ?? 'Room Rent Bill';
+      if (type.contains('Electricity')) {
+        String unitsDetails = (billRecord['unitsUsed'] != null && billRecord['unitsUsed'] > 0)
+            ? "Meter Reading: ${billRecord['startUnits']} to ${billRecord['endUnits']}\nConsumed Units: ${billRecord['unitsUsed']} Units\nElectricity Amount: ₹${billRecord['elecBill']}\n"
+            : "";
+        String rentDetails = (billRecord['rentAmount'] != null && billRecord['rentAmount'] > 0) ? "Rent: ₹${billRecord['rentAmount']}\n" : "";
+        msg = "*🏠 $type (REMINDER)*\n--------------------\nName: ${item['name']}\n$roomTag: ${item['roomNo'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\n$unitsDetails$rentDetails$dueText$advText--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+      } else {
+        msg = "*🏠 MONTHLY ${item['pType'].toUpperCase()} BILL (REMINDER)*\n--------------------\nName: ${item['name']}\n$roomTag: ${item['roomNo'] ?? 'N/A'}\nBill Date: ${billRecord['date']}\nRent: ₹${billRecord['rentAmount']}$dueText$advText\n--------------------\n*TOTAL PAYABLE: ₹$total*\n--------------------\n*Pay To:*\nName: $oName\nUPI ID: $upi\nUPI Mobile: $upiNum\n\nDhanyawad!";
+      }
+    }
+
+    if (item['pType'] == 'Renter') {
+      _sendWhatsApp(item['mobile'], msg);
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Bill WhatsApp Par Bhej Diya Gaya!")));
+      return;
+    }
+
+    String resendTarget = 'both';
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) => AlertDialog(
+          title: const Text("📲 Send Bill on WhatsApp"),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text("Name: ${item['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+              Text("Bill Amount: ₹$total (${billRecord['date']})"),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: resendTarget,
+                decoration: const InputDecoration(border: OutlineInputBorder()),
+                items: [
+                  const DropdownMenuItem(value: "both", child: Text("1. Dono Ko (Member + Parents)")),
+                  const DropdownMenuItem(value: "student", child: Text("2. Sirf Member Ko")),
+                  if (item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty)
+                    const DropdownMenuItem(value: "parents", child: Text("3. Sirf Parents Ko")),
+                ],
+                onChanged: (v) => setDialogState(() => resendTarget = v!),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF25D366)),
+              onPressed: () {
+                Navigator.pop(ctx);
+                if (resendTarget == 'student' || resendTarget == 'both') _sendWhatsApp(item['mobile'], msg);
+                if ((resendTarget == 'parents' || resendTarget == 'both') && item['parentMobile'] != null && item['parentMobile'].toString().isNotEmpty) {
+                  _sendWhatsApp(item['parentMobile'], msg);
+                }
+              },
+              child: const Text("Send WhatsApp", style: TextStyle(color: Colors.white)),
+            ),
           ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white70))),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              double paid = double.tryParse(paidCtrl.text) ?? 0.0;
-              String dateStr = DateTime.now().toString().split(' ')[0];
-              setState(() {
-                billRecord['paidAmount'] = paid;
-                billRecord['paymentDate'] = dateStr;
-                billRecord['status'] = paid >= total ? 'Paid' : 'Partial';
-              });
-              _saveRentersToStorage();
-              _sendWhatsApp(item['mobile'], "*🧾 PAYMENT RECEIVED*\nPaid: ₹$paid\nStatus: ${billRecord['status']}");
-            },
-            child: const Text("Save Payment"),
-          ),
-        ],
+      ),
+    );
+  }
+
+  void _openEditHistoryDialog(Map<String, dynamic> item, Map<String, dynamic> h) {
+    final rentCtrl = TextEditingController(text: (h['rentAmount'] ?? 0.0).toString());
+    final elecCtrl = TextEditingController(text: (h['elecBill'] ?? 0.0).toString());
+    final paidCtrl = TextEditingController(text: (h['paidAmount'] ?? 0.0).toString());
+    DateTime bDate = DateTime.parse(h['date'] ?? DateTime.now().toString().split(' ')[0]);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) {
+          String dateFormatted = "${bDate.year}-${bDate.month.toString().padLeft(2, '0')}-${bDate.day.toString().padLeft(2, '0')}";
+          return AlertDialog(
+            title: const Text("✏️ Edit Bill Record"),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  InkWell(
+                    onTap: () async {
+                      DateTime? p = await _selectCustomDate(context, bDate);
+                      if (p != null) setDialogState(() => bDate = p);
+                    },
+                    child: InputDecorator(
+                      decoration: const InputDecoration(labelText: "Bill Date", border: OutlineInputBorder()),
+                      child: Text(dateFormatted),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(controller: rentCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Rent/Fee Amount (₹)", border: OutlineInputBorder())),
+                  const SizedBox(height: 10),
+                  TextField(controller: elecCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Electricity Bill (₹)", border: OutlineInputBorder())),
+                  const SizedBox(height: 10),
+                  TextField(controller: paidCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Total Jama Kiya Hua Amount (₹)", border: OutlineInputBorder())),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.blue),
+                onPressed: () {
+                  setState(() {
+                    h['date'] = dateFormatted;
+                    h['rentAmount'] = double.tryParse(rentCtrl.text) ?? 0.0;
+                    h['elecBill'] = double.tryParse(elecCtrl.text) ?? 0.0;
+                    h['paidAmount'] = double.tryParse(paidCtrl.text) ?? 0.0;
+                    
+                    double backDue = (h['backDue'] as num?)?.toDouble() ?? 0.0;
+                    h['totalPayable'] = h['rentAmount'] + h['elecBill'] + backDue;
+                    
+                    double total = h['totalPayable'];
+                    double paid = h['paidAmount'];
+                    h['status'] = (paid >= total && total > 0) ? 'Paid' : (paid > 0 ? 'Partial' : 'Pending');
+                  });
+                  _saveRentersToStorage();
+                  Navigator.pop(ctx);
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Record Update Ho Gaya!")));
+                },
+                child: const Text("Save Changes", style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -735,310 +1326,399 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
   void _showHistoryDialog(Map<String, dynamic> item) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text("📜 History: ${item['name']}", style: const TextStyle(color: Colors.white)),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: (item['history'] ?? []).length,
-            itemBuilder: (c, idx) {
-              var h = item['history'][idx];
-              return ListTile(
-                title: Text(h['type'] ?? 'Bill', style: const TextStyle(color: Colors.white)),
-                subtitle: Text("Date: ${h['date']} | Total: ₹${h['totalPayable']} | Status: ${h['status']}", style: const TextStyle(color: Colors.white70)),
-                trailing: ElevatedButton(
-                  onPressed: () => _openPaymentRecordDialog(item, h),
-                  child: const Text("Pay"),
-                ),
-              );
-            },
-          ),
-        ),
-        actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close", style: TextStyle(color: Color(0xFFFFB703))))],
-      ),
-    );
-  }
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          List history = item['history'] ?? [];
+          return AlertDialog(
+            title: Text("📜 Bill History: ${item['name']}"),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: history.isEmpty
+                  ? const Center(child: Text("Abhi koi bill history nahi hai."))
+                  : ListView.builder(
+                      shrinkWrap: true,
+                      itemCount: history.length,
+                      itemBuilder: (c, idx) {
+                        var h = history[idx];
+                        double total = (h['totalPayable'] as num).toDouble();
+                        double paid = (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
+                        double remaining = total - paid;
 
-  void _openAddExpenseDialog() {
-    final titleCtrl = TextEditingController();
-    final amountCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("💸 Add Expense", style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: "Title")),
-            const SizedBox(height: 10),
-            TextField(controller: amountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Amount (₹)")),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white70))),
-          ElevatedButton(
-            onPressed: () {
-              double amt = double.tryParse(amountCtrl.text) ?? 0.0;
-              if (amt <= 0) return;
-              setState(() { expenses.add({'title': titleCtrl.text, 'amount': amt, 'date': DateTime.now().toString().split(' ')[0]}); });
-              _saveExpensesToStorage();
-              Navigator.pop(ctx);
-            },
-            child: const Text("Save"),
-          ),
-        ],
-      ),
-    );
-  }
+                        Color cardBgColor;
+                        Color statusBadgeColor;
+                        String statusBadgeText;
 
-  void _openAddComplaintDialog() {
-    final titleCtrl = TextEditingController();
-    final roomCtrl = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("🛠️ Log Issue", style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(controller: roomCtrl, decoration: const InputDecoration(labelText: "Room / Name")),
-            const SizedBox(height: 10),
-            TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: "Issue Details")),
-          ],
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel", style: TextStyle(color: Colors.white70))),
-          ElevatedButton(
-            onPressed: () {
-              if (titleCtrl.text.isEmpty) return;
-              setState(() { complaints.add({'room': roomCtrl.text, 'title': titleCtrl.text, 'status': 'Pending', 'date': DateTime.now().toString().split(' ')[0]}); });
-              _saveComplaintsToStorage();
-              Navigator.pop(ctx);
-            },
-            child: const Text("Save"),
-          ),
-        ],
-      ),
-    );
-  }
+                        if (paid >= total && total > 0) {
+                          cardBgColor = Colors.green.shade50;
+                          statusBadgeColor = Colors.green;
+                          statusBadgeText = "PAID ✅";
+                        } else if (paid > 0 && paid < total) {
+                          cardBgColor = Colors.orange.shade50;
+                          statusBadgeColor = Colors.orange.shade800;
+                          statusBadgeText = "PARTIAL: ₹${remaining.toStringAsFixed(0)} ⚠️";
+                        } else if (total == 0 && (h['status'] == 'Paid')) {
+                          cardBgColor = Colors.green.shade50;
+                          statusBadgeColor = Colors.green;
+                          statusBadgeText = "PAID (Advance) ✅";
+                        } else {
+                          cardBgColor = Colors.red.shade50;
+                          statusBadgeColor = Colors.red;
+                          statusBadgeText = "UNPAID ❌";
+                        }
 
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
-        appBar: PreferredSize(
-          preferredSize: const Size.fromHeight(130),
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(colors: [Color(0xFF0B132B), Color(0xFF1C2541)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+                        return Card(
+                          color: cardBgColor,
+                          elevation: 1.5,
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8), side: BorderSide(color: statusBadgeColor, width: 1.5)),
+                          child: InkWell(
+                            onTap: () => _openPaymentRecordDialog(item, h),
+                            child: Padding(
+                              padding: const EdgeInsets.all(10),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(h['type'] ?? 'Bill', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(color: statusBadgeColor, borderRadius: BorderRadius.circular(10)),
+                                        child: Text(statusBadgeText, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                      ),
+                                    ],
+                                  ),
+                                  const Divider(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text("📅 Generated: ${h['date']}", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                                      Text("Total Bill: ₹$total", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue)),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text("📅 Paid Date: ${h['paymentDate'] ?? '-'}", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                                      Text("Total Paid: ₹$paid", style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.green.shade800)),
+                                    ],
+                                  ),
+                                  if (h['paymentLogs'] != null && (h['paymentLogs'] as List).isNotEmpty)
+                                    Padding(
+                                      padding: const EdgeInsets.only(top: 4),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: (h['paymentLogs'] as List).map((log) => Text("-> ${log['date']}: ₹${log['amount']} jama kiya", style: TextStyle(fontSize: 11, color: Colors.green.shade700))).toList(),
+                                      ),
+                                    ),
+                                  if (h['advanceUsed'] != null && (h['advanceUsed'] as num) > 0)
+                                    Text("💎 Advance Adjusted: ₹${h['advanceUsed']}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.green.shade900)),
+                                  if (remaining > 0 && paid > 0)
+                                    Text("⚠️ Remaining Due: ₹${remaining.toStringAsFixed(1)}", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.deepOrange.shade900)),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      OutlinedButton.icon(
+                                        style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
+                                        onPressed: () => _openResendChoiceDialog(item, h),
+                                        icon: const Icon(Icons.send, size: 12, color: Color(0xFF25D366)),
+                                        label: const Text("Send 🔁", style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+                                      ),
+                                      ElevatedButton(
+                                        style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey.shade800, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
+                                        onPressed: () => _openPaymentRecordDialog(item, h),
+                                        child: const Text("Pay 💳", style: TextStyle(fontSize: 10)),
+                                      ),
+                                      IconButton(
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        icon: const Icon(Icons.edit, color: Colors.blue, size: 20),
+                                        onPressed: () => _openEditHistoryDialog(item, h),
+                                      ),
+                                      IconButton(
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                        onPressed: () {
+                                          showDialog(
+                                            context: ctx,
+                                            builder: (delCtx) => AlertDialog(
+                                              title: const Text("Delete Record?"),
+                                              content: const Text("Kya aap is galti se bane bill ko delete karna chahte hain?"),
+                                              actions: [
+                                                TextButton(onPressed: () => Navigator.pop(delCtx), child: const Text("Cancel")),
+                                                ElevatedButton(
+                                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                                                  onPressed: () {
+                                                    setDialogState(() {
+                                                      item['history'].remove(h);
+                                                    });
+                                                    _saveRentersToStorage();
+                                                    Navigator.pop(delCtx);
+                                                  },
+                                                  child: const Text("Delete", style: TextStyle(color: Colors.white)),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
-            child: AppBar(
-              backgroundColor: Colors.transparent, elevation: 0, toolbarHeight: 70,
-              title: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                    child: const Icon(Icons.domain_rounded, color: Color(0xFFFFB703), size: 24),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(child: Text(propertyNameCtrl.text.isNotEmpty ? propertyNameCtrl.text : 'RentManager Pro', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white))),
-                ],
-              ),
-              actions: [
-                IconButton(icon: const Icon(Icons.account_circle, color: Colors.white, size: 28), onPressed: _openOwnerProfileSheet),
-              ],
-              bottom: TabBar(
-                controller: _tabController, isScrollable: true, indicatorColor: const Color(0xFFFFB703), indicatorWeight: 3, labelColor: const Color(0xFFFFB703), unselectedLabelColor: Colors.white70,
-                tabs: const [
-                  Tab(icon: Icon(Icons.dashboard_rounded, size: 20), text: "Dashboard"),
-                  Tab(icon: Icon(Icons.person_add_alt_1_rounded, size: 20), text: "+ New Entry"),
-                  Tab(icon: Icon(Icons.folder_shared_rounded, size: 20), text: "Members Data"),
-                  Tab(icon: Icon(Icons.account_balance_wallet_rounded, size: 20), text: "Expenses & Issues"),
-                ],
-              ),
-            ),
-          ),
-        ),
-        body: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildDashboardView(),
-            _buildNewEntryForm(),
-            _buildRegisteredListView(),
-            _buildExpensesAndComplaintsView(),
-          ],
-        ),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Close")),
+            ],
+          );
+        },
       ),
     );
   }
 
   Widget _buildDashboardView() {
-    double totalCollected = 0.0; double totalPendingDue = 0.0; double totalSecurity = 0.0; int activeResidents = 0;
+    double totalCollected = 0.0;
+    double totalPendingDue = 0.0;
+    double totalSecurity = 0.0;
+    int activeResidents = 0;
+
     for (var r in renters) {
       if (r['isClosed'] != true) {
         activeResidents++;
-        totalSecurity += (r['securityDeposit'] ?? 0.0) as double;
+        totalSecurity += (r['securityDeposit'] ?? r['advance'] ?? 0.0) as double;
         totalPendingDue += _getAccurateUnpaidDue(r);
-        for (var h in (r['history'] ?? [])) {
-          totalCollected += (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
+        if (r['history'] != null) {
+          for (var h in r['history']) {
+            totalCollected += (h['paidAmount'] as num?)?.toDouble() ?? 0.0;
+          }
         }
       }
     }
+
     double totalExpenseAmt = expenses.fold(0.0, (sum, item) => sum + (item['amount'] as num).toDouble());
     double netProfit = totalCollected - totalExpenseAmt;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Expanded(child: ElevatedButton.icon(onPressed: _sendBulkReminders, icon: const Icon(Icons.notifications_active_rounded), label: const Text("Bulk Reminders"))),
-              const SizedBox(width: 12),
-              Expanded(child: ElevatedButton.icon(onPressed: () => _tabController.animateTo(1), icon: const Icon(Icons.person_add_alt_1_rounded), label: const Text("Add Member"))),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _buildMetricCard("TOTAL COLLECTED", "₹${totalCollected.toStringAsFixed(0)}", Icons.wallet, const Color(0xFF10B981))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildMetricCard("MARKET DUE", "₹${totalPendingDue.toStringAsFixed(0)}", Icons.error_outline, const Color(0xFFEF4444))),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF2E7D32), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
+                  onPressed: _sendBulkReminders,
+                  icon: const Icon(Icons.notifications_active),
+                  label: const Text("📢 Bulk Reminders", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0288D1), foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
+                  onPressed: () => _tabController.animateTo(1),
+                  icon: const Icon(Icons.person_add),
+                  label: const Text("+ Add Member", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 12),
+
           Row(
             children: [
-              Expanded(child: _buildMetricCard("ACTIVE MEMBERS", "$activeResidents", Icons.people, const Color(0xFF0EA5E9))),
-              const SizedBox(width: 12),
-              Expanded(child: _buildMetricCard("NET PROFIT", "₹${netProfit.toStringAsFixed(0)}", Icons.trending_up, const Color(0xFFFFB703))),
+              Expanded(child: _buildMetricCard("💰 Total Collected", "₹${totalCollected.toStringAsFixed(0)}", Colors.green.shade800, Colors.green.shade50)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildMetricCard("⚠️ Market Due (Baki)", "₹${totalPendingDue.toStringAsFixed(0)}", Colors.red.shade800, Colors.red.shade50)),
             ],
           ),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(color: const Color(0xFF1C2541), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white10)),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text("Security Deposit Held", style: TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
-                Text("₹${totalSecurity.toStringAsFixed(0)}", style: const TextStyle(color: Color(0xFFFFB703), fontWeight: FontWeight.bold, fontSize: 18)),
-              ],
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Expanded(child: _buildMetricCard("👥 Total Members", "$activeResidents Active", Colors.blue.shade900, Colors.blue.shade50)),
+              const SizedBox(width: 8),
+              Expanded(child: _buildMetricCard("📈 Net Profit", "₹${netProfit.toStringAsFixed(0)}", Colors.indigo.shade900, Colors.indigo.shade50)),
+            ],
+          ),
+          const SizedBox(height: 14),
+
+          Card(
+            color: Colors.indigo.shade50,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text("🔒 Total Security Deposit Held:", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.indigo)),
+                  Text("₹${totalSecurity.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.indigo)),
+                ],
+              ),
             ),
           ),
+          const SizedBox(height: 14),
+
+          const Text("🔔 Rent/Fee Due in Next 3 Days", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+          const SizedBox(height: 6),
+          _buildUpcomingDuesList(),
         ],
       ),
     );
   }
 
-  Widget _buildMetricCard(String title, String value, IconData icon, Color color) {
+  Widget _buildMetricCard(String title, String value, Color textCol, Color bgCol) {
     return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(color: const Color(0xFF1C2541), borderRadius: BorderRadius.circular(14), border: Border.all(color: Colors.white10)),
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(color: bgCol, borderRadius: BorderRadius.circular(10), border: Border.all(color: textCol.withOpacity(0.3))),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-            Text(title, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: color)),
-            Icon(icon, size: 18, color: color),
-          ]),
-          const SizedBox(height: 8),
-          Text(value, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text(title, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: textCol)),
+          const SizedBox(height: 4),
+          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: textCol)),
         ],
       ),
     );
   }
 
-  Widget _buildNewEntryForm() {
-    bool isStudent = (personType == 'Student');
-    bool isRenterOrHostel = (personType == 'Renter' || personType == 'Hostel');
-    String rentDateStr = "${rentEntryDate.year}-${rentEntryDate.month.toString().padLeft(2, '0')}-${rentEntryDate.day.toString().padLeft(2, '0')}";
+  Widget _buildUpcomingDuesList() {
+    DateTime now = DateTime.now();
+    List<Map<String, dynamic>> upcoming = renters.where((r) {
+      if (r['isClosed'] == true) return false;
+      try {
+        DateTime due = DateTime.parse(r['nextDueDate']);
+        int diff = due.difference(now).inDays;
+        return diff >= -1 && diff <= 4;
+      } catch (_) {
+        return false;
+      }
+    }).toList();
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Card(
-        color: const Color(0xFF1C2541), elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+    if (upcoming.isEmpty) {
+      return Card(
         child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              DropdownButtonFormField<String>(
-                value: personType, 
-                decoration: const InputDecoration(labelText: "Category"), 
-                dropdownColor: const Color(0xFF1C2541),
-                items: const [
-                  DropdownMenuItem(value: "Student", child: Text("🎓 Student", style: TextStyle(color: Colors.white))), 
-                  DropdownMenuItem(value: "Hostel", child: Text("🏢 Hostel", style: TextStyle(color: Colors.white))), 
-                  DropdownMenuItem(value: "Renter", child: Text("🏠 Renter", style: TextStyle(color: Colors.white)))
-                ], 
-                onChanged: (v) => setState(() => personType = v!)
-              ),
-              const SizedBox(height: 12),
-              TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Full Name *")),
-              const SizedBox(height: 12),
-              TextField(controller: mobileCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "WhatsApp No. *")),
-              if (isStudent || personType == 'Hostel') ...[
-                const SizedBox(height: 12),
-                TextField(controller: parentMobileCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Parents Mobile Number")),
-              ],
-              const SizedBox(height: 12),
-              TextField(controller: roomOrRollCtrl, decoration: InputDecoration(labelText: isStudent ? "Roll No *" : "Room / Bed No *")),
-              if (isRenterOrHostel) ...[
-                const SizedBox(height: 12),
-                TextField(controller: initialReadingCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Initial Meter Reading")),
-              ],
-              const SizedBox(height: 12),
-              TextField(controller: rentCtrl, keyboardType: TextInputType.number, decoration: InputDecoration(labelText: isStudent ? "Monthly Fee (₹) *" : "Monthly Rent (₹) *")),
-              const SizedBox(height: 12),
-              TextField(controller: advanceCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Security Deposit Paid (₹)")),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _saveNewRegistration, 
-                child: const Text("Save & Send Welcome Rules", style: TextStyle(fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
+          padding: const EdgeInsets.all(12),
+          child: Text("Agle 3 dino me kisi ka rent/fee due nahi hai.", style: TextStyle(color: Colors.grey.shade600, fontSize: 12)),
         ),
-      ),
+      );
+    }
+
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: upcoming.length,
+      itemBuilder: (c, idx) {
+        final item = upcoming[idx];
+        String icon = item['pType'] == 'Student' ? "🎓" : (item['pType'] == 'Hostel' ? "🏢" : "🏠");
+        String roomLabel = item['pType'] == 'Student' ? "Roll No" : "Room/Bed";
+
+        return Card(
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: ListTile(
+            dense: true,
+            leading: Text(icon, style: const TextStyle(fontSize: 20)),
+            title: Text("${item['name']} ($roomLabel: ${item['roomNo'] ?? 'N/A'})", style: const TextStyle(fontWeight: FontWeight.bold)),
+            subtitle: Text("Due Date: ${item['nextDueDate']} | Fee/Rent: ₹${item['rent']}"),
+            trailing: IconButton(
+              icon: const Icon(Icons.send, color: Color(0xFF25D366)),
+              onPressed: () {
+                String oName = ownerNameCtrl.text.isNotEmpty ? ownerNameCtrl.text : "Owner";
+                String msg = "*🔔 RENT/FEE DUE REMINDER*\n--------------------\nName: ${item['name']}\n$roomLabel: ${item['roomNo'] ?? 'N/A'}\nDue Date: ${item['nextDueDate']}\nAmount: ₹${item['rent']}\nOwner: $oName";
+                _sendWhatsApp(item['mobile'], msg);
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
   Widget _buildRegisteredListView() {
     List<Map<String, dynamic>> filtered = renters;
-    if (listFilter == 'Student') filtered = renters.where((r) => r['pType'] == 'Student' && r['isClosed'] != true).toList();
-    if (listFilter == 'Renter') filtered = renters.where((r) => r['pType'] == 'Renter' && r['isClosed'] != true).toList();
-    if (listFilter == 'Hostel') filtered = renters.where((r) => r['pType'] == 'Hostel' && r['isClosed'] != true).toList();
-    if (listFilter == 'Closed') filtered = renters.where((r) => r['isClosed'] == true).toList();
+    if (listFilter == 'Student') {
+      filtered = renters.where((r) => r['pType'] == 'Student' && (r['isClosed'] != true)).toList();
+    } else if (listFilter == 'Hostel') {
+      filtered = renters.where((r) => r['pType'] == 'Hostel' && (r['isClosed'] != true)).toList();
+    } else if (listFilter == 'Renter') {
+      filtered = renters.where((r) => r['pType'] == 'Renter' && (r['isClosed'] != true)).toList();
+    } else if (listFilter == 'Closed') {
+      filtered = renters.where((r) => r['isClosed'] == true).toList();
+    } else {
+      filtered = List.from(renters);
+    }
 
     return Column(
       children: [
-        Container(
-          color: const Color(0xFF0B132B), padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: Row(children: [
-            _buildFilterChip("All", 'all'), const SizedBox(width: 6),
-            _buildFilterChip("🎓 Students", 'Student'), const SizedBox(width: 6),
-            _buildFilterChip("🏢 Hostel", 'Hostel'), const SizedBox(width: 6),
-            _buildFilterChip("🏠 Renters", 'Renter'), const SizedBox(width: 6),
-            _buildFilterChip("Closed", 'Closed'),
-          ])),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          child: Row(
+            children: [
+              FilterChip(label: Text("All (${renters.length})"), selected: listFilter == 'all', onSelected: (_) => setState(() => listFilter = 'all')),
+              const SizedBox(width: 6),
+              FilterChip(label: const Text("🎓 Students"), selected: listFilter == 'Student', onSelected: (_) => setState(() => listFilter = 'Student')),
+              const SizedBox(width: 6),
+              FilterChip(label: const Text("🏢 Hostel"), selected: listFilter == 'Hostel', onSelected: (_) => setState(() => listFilter = 'Hostel')),
+              const SizedBox(width: 6),
+              FilterChip(label: const Text("🏠 Renters / Family"), selected: listFilter == 'Renter', onSelected: (_) => setState(() => listFilter = 'Renter')),
+              const SizedBox(width: 6),
+              FilterChip(
+                label: Text("🚪 Left / Closed (${renters.where((r) => r['isClosed'] == true).length})"),
+                selected: listFilter == 'Closed',
+                onSelected: (_) => setState(() => listFilter = 'Closed'),
+              ),
+            ],
+          ),
         ),
         Expanded(
           child: filtered.isEmpty
-              ? const Center(child: Text("No members found.", style: TextStyle(color: Colors.white70)))
+              ? const Center(child: Text("Koi record nahi mila.", style: TextStyle(color: Colors.grey)))
               : ListView.builder(
-                  padding: const EdgeInsets.symmetric(vertical: 8), itemCount: filtered.length,
+                  itemCount: filtered.length,
                   itemBuilder: (ctx, i) {
                     final r = filtered[i];
                     bool isStudent = (r['pType'] == 'Student');
-                    double due = _getAccurateUnpaidDue(r);
+                    bool isHostel = (r['pType'] == 'Hostel');
+                    bool isClosed = (r['isClosed'] == true);
+                    double currentDue = _getAccurateUnpaidDue(r, category: 'all');
+                    double securityDeposit = (r['securityDeposit'] ?? r['advance'] ?? 0.0) as double;
+                    bool hasHistory = (r['history'] != null && (r['history'] as List).isNotEmpty);
+                    bool isFullyPaid = (currentDue == 0 && hasHistory);
+                    bool isPartial = (currentDue > 0 && hasHistory);
+
+                    Color statusColor = Colors.red.shade400;
+                    String statusText = "UNPAID (Due: ₹$currentDue)";
+                    if (isClosed) {
+                      statusColor = Colors.grey.shade700;
+                      statusText = "LEFT / CLOSED 🚫 (${r['closedDate'] ?? ''})";
+                    } else if (isFullyPaid) {
+                      statusColor = Colors.green;
+                      statusText = "ALL PAID ✅";
+                    } else if (isPartial) {
+                      statusColor = Colors.orange.shade800;
+                      statusText = "DUE: ₹$currentDue";
+                    }
+
+                    String categoryIcon = isStudent ? "🎓" : (isHostel ? "🏢" : "🏠");
+                    String roomDisplay = isStudent
+                        ? (r['roomNo'] != null && r['roomNo'].toString().isNotEmpty ? '(Roll No: ' + r['roomNo'] + ')' : '')
+                        : (r['roomNo'] != null && r['roomNo'].toString().isNotEmpty ? '(Room: ' + r['roomNo'] + ')' : '');
+
                     return Card(
-                      margin: const EdgeInsets.symmetric(horizontal: 14, vertical: 6), elevation: 0, color: const Color(0xFF1C2541),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: due > 0 ? Colors.red.shade400 : Colors.green.shade400, width: 1.5)),
+                      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      elevation: 2,
+                      color: isClosed ? Colors.grey.shade100 : Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10), side: BorderSide(color: statusColor, width: isClosed ? 1.5 : 2)),
                       child: Padding(
                         padding: const EdgeInsets.all(12),
                         child: Column(
@@ -1047,44 +1727,99 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text(r['name'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
-                                IconButton(icon: const Icon(Icons.edit, size: 18, color: Color(0xFFFFB703)), onPressed: () => _showEditDialog(r)),
+                                Row(
+                                  children: [
+                                    Text(categoryIcon, style: const TextStyle(fontSize: 18)),
+                                    const SizedBox(width: 6),
+                                    Text("${r['name']} $roomDisplay", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, decoration: isClosed ? TextDecoration.lineThrough : null)),
+                                  ],
+                                ),
+                                Row(
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(color: statusColor, borderRadius: BorderRadius.circular(12)),
+                                      child: Text(statusText, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                                    ),
+                                    if (!isClosed)
+                                      IconButton(icon: const Icon(Icons.edit, color: Colors.blue, size: 20), onPressed: () => _showEditDialog(r)),
+                                    
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red, size: 20),
+                                      onPressed: () {
+                                        final deletedMember = Map<String, dynamic>.from(r);
+                                        final deletedIndex = renters.indexOf(r);
+                                        setState(() => renters.removeAt(deletedIndex));
+                                        _saveRentersToStorage();
+
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text("${deletedMember['name']} ka record delete ho gaya."),
+                                            action: SnackBarAction(
+                                              label: "UNDO",
+                                              textColor: Colors.amber,
+                                              onPressed: () {
+                                                setState(() => renters.insert(deletedIndex, deletedMember));
+                                                _saveRentersToStorage(); 
+                                              },
+                                            ),
+                                            duration: const Duration(seconds: 4),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ),
                               ],
                             ),
-                            Text("📱 ${r['mobile']} | Due: ₹$due", style: const TextStyle(color: Colors.white70)),
-                            const Divider(color: Colors.white12, height: 12),
+                            Text("📱 Phone: ${r['mobile']} ${r['parentMobile'] != '' && r['parentMobile'] != null ? '\n👨‍👩‍👦 Parents: ' + r['parentMobile'] : ''}", style: const TextStyle(fontSize: 13)),
+                            if (r['address'] != null && r['address'].toString().isNotEmpty)
+                              Text("📍 Addr: ${r['address']}", style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                            Text("🗓 Joining Date: ${r['entryDate']} ${!isClosed ? '| Due Date: ' + r['nextDueDate'].toString() : ''}", style: const TextStyle(fontSize: 12, color: Colors.blueGrey)),
+                            if (!isStudent && r['elecDate'] != null)
+                              Text("⚡ Elec Date: ${r['elecDate']}", style: const TextStyle(fontSize: 12, color: Colors.deepOrange)),
+                            Text("💰 Fixed ${isStudent ? 'Fee' : 'Rent'}: ₹${r['rent']}", style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                            if (securityDeposit > 0)
+                              Text("🔒 Security Deposit: ₹$securityDeposit", style: const TextStyle(fontSize: 12, color: Colors.indigo, fontWeight: FontWeight.bold)),
+                            if (!isStudent)
+                              Text("⚡ Current Base Reading: ${r['prevReading']} Units", style: const TextStyle(fontSize: 12, color: Colors.brown, fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 10),
                             Wrap(
                               spacing: 6,
+                              runSpacing: 6,
                               children: [
-                                ElevatedButton.icon(
-                                  style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
-                                  icon: const Icon(Icons.receipt, size: 14),
-                                  label: const Text("Bill", style: TextStyle(fontSize: 11)),
-                                  onPressed: () {
-                                    if (isStudent) {
-                                      _openStudentGenerateBillDialog(r);
-                                    } else {
-                                      _showRenterOrHostelBillOptionDialog(r);
-                                    }
-                                  },
-                                ),
+                                if (!isClosed) ...[
+                                  if (isStudent) ...[
+                                    ElevatedButton.icon(
+                                      onPressed: () => _openStudentGenerateBillDialog(r),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800),
+                                      icon: const Icon(Icons.receipt_long, color: Colors.white, size: 14),
+                                      label: const Text("⚡ Generate Monthly Bill", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ] else ...[
+                                    ElevatedButton.icon(
+                                      onPressed: () => _showRenterOrHostelBillOptionDialog(r),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.blue.shade800),
+                                      icon: const Icon(Icons.receipt_long, color: Colors.white, size: 14),
+                                      label: const Text("⚡ Generate Monthly Bill", style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ],
+                                  OutlinedButton.icon(
+                                    onPressed: () => _sharePoliceVerificationForm(r),
+                                    icon: const Icon(Icons.description, size: 14, color: Colors.indigo),
+                                    label: const Text("Doc / Profile 📋", style: TextStyle(fontSize: 11)),
+                                  ),
+                                  OutlinedButton.icon(
+                                    onPressed: () => _openCloseAccountDialog(r),
+                                    style: OutlinedButton.styleFrom(foregroundColor: Colors.red.shade800, side: BorderSide(color: Colors.red.shade400)),
+                                    icon: const Icon(Icons.exit_to_app, size: 14),
+                                    label: const Text("Close Account 🚪", style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                  ),
+                                ],
                                 OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(foregroundColor: Colors.tealAccent, side: const BorderSide(color: Colors.tealAccent), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
-                                  icon: const Icon(Icons.history, size: 14),
-                                  label: Text("History (${(r['history'] ?? []).length})", style: const TextStyle(fontSize: 11)),
                                   onPressed: () => _showHistoryDialog(r),
-                                ),
-                                OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(foregroundColor: Colors.lightBlueAccent, side: const BorderSide(color: Colors.lightBlueAccent), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
-                                  icon: const Icon(Icons.description, size: 14),
-                                  label: const Text("Doc", style: TextStyle(fontSize: 11)),
-                                  onPressed: () => _sharePoliceVerificationForm(r),
-                                ),
-                                OutlinedButton.icon(
-                                  style: OutlinedButton.styleFrom(foregroundColor: Colors.redAccent, side: const BorderSide(color: Colors.redAccent), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2)),
-                                  icon: const Icon(Icons.exit_to_app, size: 14),
-                                  label: const Text("Close", style: TextStyle(fontSize: 11)),
-                                  onPressed: () => _openCloseAccountDialog(r),
+                                  icon: const Icon(Icons.payments, size: 14, color: Colors.green),
+                                  label: Text("History (${r['history']?.length ?? 0})", style: const TextStyle(fontSize: 11)),
                                 ),
                               ],
                             ),
@@ -1099,105 +1834,156 @@ class _MainHomeScreenState extends State<MainHomeScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildExpensesAndComplaintsView() {
-    double totalExpenseAmt = expenses.fold(0.0, (sum, item) => sum + (item['amount'] as num).toDouble());
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("💸 Expenses: ₹${totalExpenseAmt.toStringAsFixed(0)}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFFEF4444))),
-              ElevatedButton.icon(style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444), foregroundColor: Colors.white), onPressed: _openAddExpenseDialog, icon: const Icon(Icons.add, size: 16), label: const Text("Add Expense")),
-            ],
-          ),
-          const Divider(color: Colors.white12, height: 28),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("🛠️ Issues (${complaints.length})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
-              ElevatedButton.icon(onPressed: _openAddComplaintDialog, icon: const Icon(Icons.report_problem, size: 16), label: const Text("Log Issue")),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  void _openAddExpenseDialog() {
+    final titleCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    String category = 'Electricity Bill';
+    DateTime expenseDate = DateTime.now();
 
-  Widget _buildFilterChip(String label, String value) {
-    bool isSelected = (listFilter == value);
-    return ChoiceChip(
-      label: Text(label, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.w500, color: isSelected ? const Color(0xFF0B132B) : Colors.white70)),
-      selected: isSelected,
-      selectedColor: const Color(0xFFFFB703),
-      backgroundColor: const Color(0xFF1C2541),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: const BorderSide(color: Colors.white24)),
-      onSelected: (_) => setState(() => listFilter = value),
-    );
-  }
-
-  void _openOwnerProfileSheet() {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      isScrollControlled: true,
       builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom, left: 16, right: 16, top: 16),
-          child: SingleChildScrollView(
+        builder: (c, setDialogState) => AlertDialog(
+          title: const Text("💸 Add Property Expense"),
+          content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Text("⚙️ Owner & Property Hub", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.white)),
-                const SizedBox(height: 12),
-                Center(
-                  child: Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 40,
-                        backgroundColor: Colors.white12,
-                        backgroundImage: ownerPhotoBase64 != null ? MemoryImage(base64Decode(ownerPhotoBase64!)) : null,
-                        child: ownerPhotoBase64 == null ? const Icon(Icons.person, size: 45, color: Colors.white70) : null,
-                      ),
-                      Positioned(
-                        bottom: 0, right: 0,
-                        child: CircleAvatar(
-                          radius: 14, backgroundColor: const Color(0xFFFFB703),
-                          child: IconButton(
-                            padding: EdgeInsets.zero,
-                            icon: const Icon(Icons.camera_alt, size: 16, color: Color(0xFF0B132B)),
-                            onPressed: () async { await _pickImage('owner'); setModalState(() {}); },
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                DropdownButtonFormField<String>(
+                  value: category,
+                  decoration: const InputDecoration(labelText: "Category", border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: "Electricity Bill", child: Text("⚡ Main Electricity Bill")),
+                    DropdownMenuItem(value: "Plumber/Electrician", child: Text("🔧 Repair & Maintenance")),
+                    DropdownMenuItem(value: "Staff Salary", child: Text("🧹 Staff / Cleaning Salary")),
+                    DropdownMenuItem(value: "WiFi/Internet", child: Text("📶 WiFi Bill")),
+                    DropdownMenuItem(value: "Other", child: Text("📦 Other Expense")),
+                  ],
+                  onChanged: (v) => setDialogState(() => category = v!),
                 ),
-                const SizedBox(height: 12),
-                TextField(controller: propertyNameCtrl, decoration: const InputDecoration(labelText: "Hostel / Residency Name")),
-                const SizedBox(height: 8),
-                TextField(controller: ownerNameCtrl, decoration: const InputDecoration(labelText: "Owner Full Name")),
-                const SizedBox(height: 8),
-                TextField(controller: ownerPhoneCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "Owner WhatsApp Number")),
-                const SizedBox(height: 8),
-                TextField(controller: ownerUpiIdCtrl, decoration: const InputDecoration(labelText: "UPI ID")),
-                const SizedBox(height: 8),
-                TextField(controller: ownerUpiNumCtrl, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: "UPI Mobile")),
-                const SizedBox(height: 8),
-                TextField(controller: defaultUnitRateCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Default Unit Rate (₹)")),
-                const SizedBox(height: 14),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 45)),
-                  onPressed: () { _saveOwnerProfile(); Navigator.pop(ctx); },
-                  child: const Text("💾 Save Profile & Settings", style: TextStyle(fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 10),
+                TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: "Expense Description / Notes", border: OutlineInputBorder())),
+                const SizedBox(height: 10),
+                TextField(controller: amountCtrl, keyboardType: TextInputType.number, decoration: const InputDecoration(labelText: "Amount (₹) *", border: OutlineInputBorder())),
               ],
             ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () {
+                double amt = double.tryParse(amountCtrl.text) ?? 0.0;
+                if (amt <= 0) return;
+                setState(() {
+                  expenses.add({
+                    'id': DateTime.now().millisecondsSinceEpoch,
+                    'category': category,
+                    'title': titleCtrl.text.trim().isEmpty ? category : titleCtrl.text.trim(),
+                    'amount': amt,
+                    'date': "${expenseDate.year}-${expenseDate.month.toString().padLeft(2, '0')}-${expenseDate.day.toString().padLeft(2, '0')}",
+                  });
+                });
+                _saveExpensesToStorage();
+                Navigator.pop(ctx);
+              },
+              child: const Text("Save Expense"),
+            ),
+          ],
         ),
       ),
     );
+  }
+
+  void _openAddComplaintDialog() {
+    final titleCtrl = TextEditingController();
+    final roomCtrl = TextEditingController();
+    String priority = 'Normal';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (c, setDialogState) => AlertDialog(
+          title: const Text("🛠️ Log Tenant Complaint"),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(controller: roomCtrl, decoration: const InputDecoration(labelText: "Room / Member Name", border: OutlineInputBorder())),
+                const SizedBox(height: 10),
+                TextField(controller: titleCtrl, maxLines: 2, decoration: const InputDecoration(labelText: "Issue (e.g. Fan not working, Water leak)", border: OutlineInputBorder())),
+                const SizedBox(height: 10),
+                DropdownButtonFormField<String>(
+                  value: priority,
+                  decoration: const InputDecoration(labelText: "Priority", border: OutlineInputBorder()),
+                  items: const [
+                    DropdownMenuItem(value: "Urgent", child: Text("🚨 Urgent")),
+                    DropdownMenuItem(value: "Normal", child: Text("⚠️ Normal")),
+                  ],
+                  onChanged: (v) => setDialogState(() => priority = v!),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancel")),
+            ElevatedButton(
+              onPressed: () {
+                if (titleCtrl.text.trim().isEmpty) return;
+                setState(() {
+                  complaints.add({
+                    'id': DateTime.now().millisecondsSinceEpoch,
+                    'room': roomCtrl.text.trim(),
+                    'title': titleCtrl.text.trim(),
+                    'priority': priority,
+                    'status': 'Pending',
+                    'date': DateTime.now().toString().split(' ')[0],
+                  });
+                });
+                _saveComplaintsToStorage();
+                Navigator.pop(ctx);
+              },
+              child: const Text("Log Issue"),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _exportJsonBackup() async {
+    Map<String, dynamic> fullData = {
+      'renters': renters,
+      'expenses': expenses,
+      'complaints': complaints,
+      'profile': ownerProfile,
+    };
+    final output = await getTemporaryDirectory();
+    final file = File("${output.path}/rent_manager_backup.json");
+    await file.writeAsString(json.encode(fullData));
+    await Share.shareXFiles([XFile(file.path)], text: 'Rent Manager Complete Data Backup (.JSON)');
+  }
+
+  void _importJsonBackup() async {
+    FilePickerResult? result = await FilePicker.platform.pickFiles(type: FileType.any);
+    if (result != null && result.files.single.path != null) {
+      File file = File(result.files.single.path!);
+      String content = await file.readAsString();
+      try {
+        Map<String, dynamic> data = json.decode(content);
+        setState(() {
+          if (data['renters'] != null) renters = List<Map<String, dynamic>>.from(data['renters']);
+          if (data['expenses'] != null) expenses = List<Map<String, dynamic>>.from(data['expenses']);
+          if (data['complaints'] != null) complaints = List<Map<String, dynamic>>.from(data['complaints']);
+          if (data['profile'] != null) ownerProfile = Map<String, dynamic>.from(data['profile']);
+        });
+        await _saveRentersToStorage();
+        await _saveExpensesToStorage();
+        await _saveComplaintsToStorage();
+        await _saveOwnerProfile();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Data Restored Successfully!")));
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Invalid Backup File!")));
+      }
+    }
   }
 }
