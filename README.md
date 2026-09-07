@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # management_app_code
 
 A new Flutter project.
@@ -16,6 +15,4 @@ A few resources to get you started if this is your first Flutter project:
 For help getting started with Flutter development, view the
 [online documentation](https://docs.flutter.dev/), which offers tutorials,
 samples, guidance on mobile development, and a full API reference.
-=======
 # RENT-MANAGER
->>>>>>> 05b56587f9c78bfe433da0a0ff2bcf555ecfe47d
