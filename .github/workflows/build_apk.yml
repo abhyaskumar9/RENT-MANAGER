@@ -28,7 +28,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: 'stable' # Yeh automatic compatible latest version uthayega
           cache: true
 
       - name: Clean and Install Dependencies
