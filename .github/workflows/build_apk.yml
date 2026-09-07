@@ -28,13 +28,13 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable' # Yeh automatic compatible latest version uthayega
-          cache: true
+          channel: 'stable'
+          cache: false # Purani kisi bhi bad cache ko automatic use karne se rokenge
 
-      - name: Clean and Install Dependencies
+      - name: Hard Reset Project Dependencies
         run: |
-          rm -f .flutter-plugins-dependencies
-          rm -f pubspec.lock
+          find . -name ".flutter-plugins-dependencies" -type f -delete
+          find . -name "pubspec.lock" -type f -delete
           flutter clean
           flutter pub get
 
