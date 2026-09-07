@@ -28,11 +28,13 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.24.0'
           channel: 'stable'
 
       - name: Clean and Install Dependencies
         run: |
-          rm -rf pubspec.lock
+          rm -f .flutter-plugins-dependencies
+          rm -f pubspec.lock
           flutter clean
           flutter pub get
 
