@@ -16,3 +16,19 @@ subprojects {
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
+
+// Yeh universal hook hai jo har chote-bade plugin ke version ko stable par auto-fix karega
+subprojects { project ->
+    project.plugins.whenPluginAdded { plugin ->
+        if (plugin.class.name.startsWith("com.android.build.gradle.AppPlugin") ||
+            plugin.class.name.startsWith("com.android.build.gradle.LibraryPlugin")) {
+            project.android {
+                compileSdkVersion 34
+                buildToolsVersion "34.0.0"
+                defaultConfig {
+                    targetSdkVersion 34
+                }
+            }
+        }
+    }
+}
