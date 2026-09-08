@@ -1,8 +1,23 @@
+name: rent_manager
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
 dependencies:
   flutter:
     sdk: flutter
 
-  # In dono versions ko up to date naye versions par change kar dein
   file_picker: ^8.1.7
   shared_preferences: ^2.3.5
   flutter_plugin_android_lifecycle: ^2.0.24
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
