@@ -37,17 +37,3 @@ android {
 flutter {
     source = "../.."
 }
-
-// CRITICAL FORCED INJECTION: Yeh single declarative step host configuration level par 
-// sabhi libraries ko direct compile level 36 assign karwa deta hai bina lifecycle hooks ke
-rootProject.subprojects {
-    val subproject = this
-    if (subproject.name != "app") {
-        subproject.plugins.withId("com.android.library") {
-            subproject.extensions.configure<com.android.build.api.dsl.LibraryExtension> {
-                compileSdk = 36
-                defaultConfig.minSdk = 21
-            }
-        }
-    }
-}
