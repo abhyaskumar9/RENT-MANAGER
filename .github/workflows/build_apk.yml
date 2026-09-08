@@ -31,17 +31,27 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Bypass Configuration Bugs
+      - name: Clean Project State & Enforce SDK 36 Global Parameters
         run: |
           rm -f .flutter-plugins-dependencies .flutter-plugins
           rm -rf android/.gradle android/.flutter-plugins-dependencies
           flutter clean
           flutter pub get
+          
+          # Native configurations overwrite to bypass validation checks on plugins
+          cd android
+          echo "flutter.sdk=$(flutter sdk-path)" > local.properties
+          echo "flutter.compileSdkVersion=36" >> local.properties
+          echo "flutter.targetSdkVersion=36" >> local.properties
+          cd ..
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses || true
 
-      - name: Build APK (Subproject Target SDK Enforce)
+      - name: Build APK (Force Dynamic Manifest Compilation)
+        # Yeh environment configuration parameters compiler ko global target values inject karte hain
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.project.compileSdkVersion=36 -Dorg.gradle.project.targetSdkVersion=36"
         run: flutter build apk --release --build-name=1.0.0 --build-number=1
 
       - name: Upload APK Artifact
