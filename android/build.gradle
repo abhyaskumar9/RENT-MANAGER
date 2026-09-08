@@ -17,14 +17,12 @@ tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
 
-// Yeh simple block saare plugins ko bina kisi syntax error ke SDK 36 par compile hone ke liye force karega
+// Bina afterEvaluate ke direct plugins ko target karne wala safe block
 subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android {
-                compileSdkVersion 36
-                targetSdkVersion 36
-            }
+    plugins.withType(com.android.build.gradle.BasePlugin).configureEach {
+        project.android {
+            compileSdkVersion 36
+            targetSdkVersion 36
         }
     }
 }
