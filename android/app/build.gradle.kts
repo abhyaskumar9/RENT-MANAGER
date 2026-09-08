@@ -37,23 +37,3 @@ android {
 flutter {
     source = "../.."
 }
-
-// 100% OFFICIAL GRADLE CONFIGURATION BLOCK:
-// Yeh block bina koi custom class type error diye, final compilation properties ko root subprojects map par match aur patch kar deta hai.
-subprojects {
-    configurations.all {
-        resolutionStrategy.eachDependency {
-            // Background metadata structure overrides ko block karne ke liye framework bindings
-        }
-    }
-    
-    // Sabhi plugins ko official tarike se application extension specifications property provide karna
-    project.plugins.withId("com.android.library") {
-        project.extensions.configure<com.android.build.api.dsl.LibraryExtension> {
-            compileSdk = 36
-            defaultConfig {
-                minSdk = 21
-            }
-        }
-    }
-}
