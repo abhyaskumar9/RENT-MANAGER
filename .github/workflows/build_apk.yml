@@ -28,13 +28,17 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.24.5' # Stable version pinned to avoid the new tool bug
           channel: 'stable'
-          cache: false # Purani kisi bhi bad cache ko automatic use karne se rokenge
+          cache: false
 
-      - name: Hard Reset Project Dependencies
+      - name: Force Clean Cache and Files
         run: |
-          find . -name ".flutter-plugins-dependencies" -type f -delete
-          find . -name "pubspec.lock" -type f -delete
+          rm -rf android/.gradle
+          rm -rf android/.flutter-plugins-dependencies
+          rm -f .flutter-plugins-dependencies
+          rm -f .flutter-plugins
+          rm -f pubspec.lock
           flutter clean
           flutter pub get
 
