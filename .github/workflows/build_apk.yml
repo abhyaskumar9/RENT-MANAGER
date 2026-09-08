@@ -31,14 +31,15 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Bypass Tooling Configuration Bug & Force SDK 36
+      - name: Bypass Tooling Bug & Patch Plugin SDKs to 36
         run: |
+          # Tool paths cleanup
           rm -f .flutter-plugins-dependencies .flutter-plugins
           rm -rf android/.gradle android/.flutter-plugins-dependencies
           flutter clean
           flutter pub get
           
-          # Pure project me SDK 36 configure karne ke liye script
+          # Sabhi plugins ko build time par strict SDK 36 configure karne ke liye variables set karna
           cd android
           echo "flutter.sdk=$(flutter sdk-path)" > local.properties
           echo "flutter.compileSdkVersion=36" >> local.properties
