@@ -5,7 +5,7 @@ plugins {
 }
 
 android {
-    // File_picker ke liye SDK 36 enforce kiya gaya hai
+    // Sahi SDK settings
     compileSdk = 36
 
     compileOptions {
@@ -13,15 +13,15 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // Naya syntax compilerOptions use karein jo error ko door karega
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    // Aapke Gradle version ke liye ye stable aur sahi format hai
+    @Suppress("DEPRECATION")
+    kotlinOptions {
+        jvmTarget = "17"
     }
 
     sourceSets {
         getByName("main") {
-            // Naye Gradle me directories mutable set ka use hota hai
-            java.directories.set(setOf("src/main/kotlin"))
+            java.srcDirs("src/main/kotlin")
         }
     }
 
