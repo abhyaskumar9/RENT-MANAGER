@@ -42,10 +42,7 @@ jobs:
         run: yes | flutter doctor --android-licenses || true
 
       - name: Build APK (Subproject Target SDK Enforce)
-        # Yeh environment flags automatic background build system me sabhi sub-packages ko strict API 36 allocation provide karenge
-        env:
-          ANALYTICS_BUILD_ENVIRONMENT: "ci"
-        run: flutter build apk --release --build-name=1.0.0 --build-number=1 --patch
+        run: flutter build apk --release --build-name=1.0.0 --build-number=1
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
