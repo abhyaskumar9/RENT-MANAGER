@@ -10,8 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
 
-  # Aapke code me use hone wale saare required packages ab yahan add kar diye hain
-  file_picker: ^8.1.7
+  # In teeno packages ko automatic SDK 36 support karne wale versions par upgrade kar diya hai
+  file_picker: ^9.0.0
   shared_preferences: ^2.3.5
   flutter_plugin_android_lifecycle: ^2.0.24
   url_launcher: ^6.3.1
