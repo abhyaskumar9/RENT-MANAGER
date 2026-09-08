@@ -31,19 +31,18 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Bypass Tooling Configuration Bug
+      - name: Bypass Tooling Configuration Bug & Force SDK 36
         run: |
-          # 1. Purani sabhi auto-generated files ko remove karna
           rm -f .flutter-plugins-dependencies .flutter-plugins
           rm -rf android/.gradle android/.flutter-plugins-dependencies
-          
-          # 2. Local configurations generate karna
           flutter clean
           flutter pub get
           
-          # 3. CRITICAL: Android custom native scripts ko dynamic dependency injection ke liye optimize karna
+          # Pure project me SDK 36 configure karne ke liye script
           cd android
           echo "flutter.sdk=$(flutter sdk-path)" > local.properties
+          echo "flutter.compileSdkVersion=36" >> local.properties
+          echo "flutter.targetSdkVersion=36" >> local.properties
           cd ..
 
       - name: Accept Android Licenses
