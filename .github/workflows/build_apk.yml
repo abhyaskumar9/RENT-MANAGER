@@ -28,7 +28,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.5' # Stable version pinned to avoid the new tool bug
+          flutter-version: '3.27.0' # Perfectly compatible version with Java 17 and new Gradle
           channel: 'stable'
           cache: false
 
