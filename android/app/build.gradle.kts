@@ -6,8 +6,6 @@ plugins {
 
 android {
     namespace = "com.rent_manager.app"
-    
-    // Yeh built-in function host app ke target level par sabhi dependencies ko auto sync rakhta hai
     compileSdk = 36
 
     compileOptions {
