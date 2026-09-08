@@ -43,15 +43,3 @@ flutter {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
 }
-
-// Yeh wala subprojects block sabse end me jodna hai
-subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android {
-                compileSdkVersion 36
-                targetSdkVersion 36
-            }
-        }
-    }
-}
