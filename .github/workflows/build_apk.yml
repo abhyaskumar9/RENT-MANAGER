@@ -31,10 +31,8 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Clean Project State & Hard Overwrite Configs
+      - name: Clean Project State
         run: |
-          # Andar wale project folder me jakar files clean karna
-          cd RENT-MANAGER || true
           rm -f .flutter-plugins-dependencies .flutter-plugins pubspec.lock
           flutter clean
           flutter pub get
@@ -42,13 +40,11 @@ jobs:
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses || true
 
-      - name: Build APK (Nested Path Enforce)
-        run: |
-          cd RENT-MANAGER || true
-          flutter build apk --release --build-name=1.0.0 --build-number=1
+      - name: Build APK (Main Directory)
+        run: flutter build apk --release --build-name=1.0.0 --build-number=1
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: rent-manager-apk
-          path: "**/build/app/outputs/flutter-apk/app-release.apk"
+          path: build/app/outputs/flutter-apk/app-release.apk
