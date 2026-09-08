@@ -28,16 +28,18 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'beta' # Beta channel naye Gradle versions ke sath fully compatible hai
-          cache: false
+          channel: 'stable'
+          cache: false # Khas karke purani cache block karne ke liye
 
-      - name: Force Clean Cache and Files
+      - name: Hard Clean All Folders
         run: |
-          rm -rf android/.gradle
-          rm -rf android/.flutter-plugins-dependencies
-          rm -f .flutter-plugins-dependencies
-          rm -f .flutter-plugins
-          rm -f pubspec.lock
+          # Yeh command pure system me jahan bhi kharab file hai use delete kar degi
+          find . -name ".flutter-plugins-dependencies" -exec rm -f {} +
+          find . -name ".flutter-plugins" -exec rm -f {} +
+          find . -name "pubspec.lock" -exec rm -f {} +
+          
+          # Ab andar wale project folder me jaakar clean aur fetch karenge
+          cd RENT-MANAGER || true
           flutter clean
           flutter pub get
 
@@ -45,10 +47,12 @@ jobs:
         run: yes | flutter doctor --android-licenses || true
 
       - name: Build APK
-        run: flutter build apk --release
+        run: |
+          cd RENT-MANAGER || true
+          flutter build apk --release
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: rent-manager-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: "**/build/app/outputs/flutter-apk/app-release.apk"
