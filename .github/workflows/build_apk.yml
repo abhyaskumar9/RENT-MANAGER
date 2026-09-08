@@ -31,18 +31,22 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Clean Project State
+      - name: Clean Project State & Force SDK 36
         run: |
           rm -f .flutter-plugins-dependencies .flutter-plugins
           rm -rf android/.gradle android/.flutter-plugins-dependencies
           flutter clean
           flutter pub get
+          cd android
+          echo "flutter.sdk=$(flutter sdk-path)" > local.properties
+          echo "flutter.compileSdkVersion=36" >> local.properties
+          echo "flutter.targetSdkVersion=36" >> local.properties
+          cd ..
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses || true
 
       - name: Build APK (Official Target SDK Enforce)
-        # Yeh single line pure build environment ko bina kisi file coding crash ke SDK 36 par build hone ke liye instructions deti hai
         run: flutter build apk --release --build-name=1.0.0 --build-number=1
 
       - name: Upload APK Artifact
