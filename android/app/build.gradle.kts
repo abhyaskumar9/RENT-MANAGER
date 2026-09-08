@@ -38,15 +38,14 @@ flutter {
     source = "../.."
 }
 
-// CRITICAL: Yeh chota block aapke sabhi background plugins (jaise file_picker) ko force karke SDK 36 par build karwayega
+// Fixed Loop: Yeh tarika bina kisi syntax crash ke sabhi background plugins ko SDK 36 par update kar dega
 subprojects {
     afterEvaluate {
         if (hasProperty("android")) {
-            extensions.configure<com.android.build.api.dsl.LibraryExtension> {
-                compileSdk = 36
-                defaultConfig {
-                    targetSdk = 36
-                }
+            val androidExtension = property("android")
+            if (androidExtension is com.android.build.api.dsl.LibraryExtension) {
+                androidExtension.compileSdk = 36
+                androidExtension.defaultConfig.targetSdk = 36
             }
         }
     }
