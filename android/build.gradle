@@ -16,11 +16,3 @@ subprojects {
 tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
-
-// Sabse safe aur standard tarika saare plugins ko SDK 36 par force karne ka
-subprojects {
-    ext {
-        compileSdkVersion = 36
-        targetSdkVersion = 36
-    }
-}
