@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.rent_manager.app"
-    compileSdk = 34
+    compileSdk = 36 // Naye packages ke liye ise 36 kar diya hai
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -20,7 +20,7 @@ android {
     defaultConfig {
         applicationId = "com.rent_manager.app"
         minSdk = 21
-        targetSdk = 34
+        targetSdk = 36 // Ise bhi 36 kar diya hai taaki check pass ho jaye
         versionCode = 1
         versionName = "1.0.0"
     }
