@@ -28,8 +28,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.27.0' # Perfectly compatible version with Java 17 and new Gradle
-          channel: 'stable'
+          channel: 'beta' # Beta channel naye Gradle versions ke sath fully compatible hai
           cache: false
 
       - name: Force Clean Cache and Files
