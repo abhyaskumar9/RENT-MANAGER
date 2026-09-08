@@ -28,23 +28,29 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3' # Lock to reliable version to avoid the 3.47+ JSON tool bug
           channel: 'stable'
           cache: false
 
-      - name: Hard Clean Cache and Files
+      - name: Bypass Tooling Configuration Bug
         run: |
-          find . -name ".flutter-plugins-dependencies" -type f -delete
-          find . -name ".flutter-plugins" -type f -delete
-          find . -name "pubspec.lock" -type f -delete
+          # 1. Purani sabhi auto-generated files ko remove karna
+          rm -f .flutter-plugins-dependencies .flutter-plugins
+          rm -rf android/.gradle android/.flutter-plugins-dependencies
+          
+          # 2. Local configurations generate karna
           flutter clean
           flutter pub get
+          
+          # 3. CRITICAL: Android custom native scripts ko dynamic dependency injection ke liye optimize karna
+          cd android
+          echo "flutter.sdk=$(flutter sdk-path)" > local.properties
+          cd ..
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses || true
 
-      - name: Build APK
-        run: flutter build apk --release
+      - name: Build APK (Bypassing Script Compilation)
+        run: flutter build apk --release --no-pub
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
