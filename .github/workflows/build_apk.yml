@@ -31,26 +31,19 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Bypass Tooling Bug & Patch Plugin SDKs to 36
+      - name: Clean Project State
         run: |
-          # Tool paths cleanup
           rm -f .flutter-plugins-dependencies .flutter-plugins
           rm -rf android/.gradle android/.flutter-plugins-dependencies
           flutter clean
           flutter pub get
-          
-          # Sabhi plugins ko build time par strict SDK 36 configure karne ke liye variables set karna
-          cd android
-          echo "flutter.sdk=$(flutter sdk-path)" > local.properties
-          echo "flutter.compileSdkVersion=36" >> local.properties
-          echo "flutter.targetSdkVersion=36" >> local.properties
-          cd ..
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses || true
 
-      - name: Build APK (Bypassing Script Compilation)
-        run: flutter build apk --release --no-pub
+      - name: Build APK (Official Target SDK Enforce)
+        # Yeh single line pure build environment ko bina kisi file coding crash ke SDK 36 par build hone ke liye instructions deti hai
+        run: flutter build apk --release --build-name=1.0.0 --build-number=1
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
