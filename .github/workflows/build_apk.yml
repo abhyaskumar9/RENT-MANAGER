@@ -31,26 +31,27 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Reset Cache & Configure Project Settings
+      - name: Reset Cache & Force SDK 36 Configurations
         run: |
           rm -f .flutter-plugins-dependencies .flutter-plugins pubspec.lock
           flutter clean
           flutter pub get
           
-          # System level configurations property generator jisse plugins override ho sakein
+          # Native environment inject karne ka sahi tarika bina kisi command options error ke
           cd android
           echo "flutter.compileSdkVersion=36" >> local.properties
           echo "flutter.targetSdkVersion=36" >> local.properties
-          echo "android.useAndroidX=true" >> gradle.properties
-          echo "android.enableJetifier=true" >> gradle.properties
+          
+          # Global gradle engine ko override karne ke liye property file setup
+          echo "compileSdkVersion=36" >> gradle.properties
+          echo "targetSdkVersion=36" >> gradle.properties
           cd ..
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses || true
 
-      - name: Build APK (Official Global SDK Enforce)
-        # Yeh parameters bina kisi custom gradle script crash ke sabhi sub-plugins ko SDK 36 allocate kar dete hain
-        run: flutter build apk --release --build-name=1.0.0 --build-number=1 --project-option="android.compileSdkVersion=36"
+      - name: Build APK (Clean Execution)
+        run: flutter build apk --release --build-name=1.0.0 --build-number=1
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
