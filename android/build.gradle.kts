@@ -9,21 +9,20 @@ subprojects {
     project.evaluationDependsOn(":app")
 }
 
-// FORCE PLUGINS SDK 36 (Bina kisi typing crash ke plugins checking criteria pass karne ka sahi tarika)
+// Dynamic injection block jo bina type error ke plugins ko host version par configuration link karega
 subprojects {
     afterEvaluate {
-        val extension = extensions.findByName("android")
-        if (extension != null) {
-            val extensionClass = extension::class.java.name
-            if (extensionClass.contains("LibraryExtension") || extensionClass.contains("ApplicationExtension")) {
+        if (project.hasProperty("android")) {
+            val androidExt = project.extensions.getByName("android")
+            // Reflection ke through safely variables push karna, bina interface loading error ke
+            try {
+                androidExt.javaClass.getMethod("setCompileSdkVersion", Int::class.javaPrimitiveType).invoke(androidExt, 36)
+            } catch (e: Exception) {
+                // Application/Library Extension specific checks override
                 try {
-                    // Script automation explicitly versions ko update kar degi
-                    val dslExtension = extension as com.android.build.api.dsl.CommonExtension<*, *, *, *, *, *>
-                    dslExtension.compileSdk = 36
-                    dslExtension.defaultConfig.targetSdk = 36
-                } catch (e: Exception) {
-                    // Errors ko catch karke pipeline fail hone se rokega
-                }
+                    val target = androidExt.javaClass.getMethod("getDefaultConfig").invoke(androidExt)
+                    target.javaClass.getMethod("setTargetSdkVersion", Int::class.javaPrimitiveType).invoke(target, 36)
+                } catch (ex: Exception) {}
             }
         }
     }
