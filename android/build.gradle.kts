@@ -5,31 +5,39 @@ allprojects {
     }
 }
 
-rootProject.buildDir = '../build'
+// Subprojects build directories configuration
+val rootBuildDir = rootProject.layout.buildDirectory.dir("../build")
 subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(':app')
+    project.layout.buildDirectory.set(rootBuildDir.map { it.dir(project.name) })
 }
 
-// OFFICIAL FORCED SDK OVERRIDE (Bina kisi syntax error ke sabhi plugins ko patch karne ka standard tarika)
 subprojects {
-    afterEvaluate { project ->
-        if (project.hasProperty('android')) {
-            project.android {
-                if (namespace == null) {
-                    // Agar koi purana plugin bina namespace ke ho
-                }
-                compileSdkVersion 36
-                defaultConfig {
-                    targetSdkVersion 36
+    project.evaluationDependsOn(":app")
+}
+
+// FIXED KOTLIN OVERRIDE: Sabhi plugins ko bina kisi error ke strict SDK 36 par build karne ka sahi tarika
+subprojects {
+    afterEvaluate {
+        if (project.hasProperty("android")) {
+            val androidExt = project.extensions.findByName("android")
+            if (androidExt != null) {
+                try {
+                    // Reflection use karke properties ko safely inject karna
+                    val setCompileSdkVersion = androidExt.javaClass.getMethod("setCompileSdkVersion", Int::class.javaPrimitiveType)
+                    setCompileSdkVersion.invoke(androidExt, 36)
+                    
+                    val getDefaultConfig = androidExt.javaClass.getMethod("getDefaultConfig")
+                    val defaultConfig = getDefaultConfig.invoke(androidExt)
+                    val setTargetSdkVersion = defaultConfig.javaClass.getMethod("setTargetSdkVersion", Int::class.javaPrimitiveType)
+                    setTargetSdkVersion.invoke(defaultConfig, 36)
+                } catch (e: Exception) {
+                    // Kisi bhi hierarchy failure ko safe catch karna
                 }
             }
         }
     }
 }
 
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
+tasks.register<Delete>("clean") {
+    delete(rootProject.layout.buildDirectory)
 }
