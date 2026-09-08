@@ -31,31 +31,24 @@ jobs:
           channel: 'stable'
           cache: false
 
-      - name: Clean Project State & Enforce SDK 36 Global Parameters
+      - name: Clean Project State & Hard Overwrite Configs
         run: |
-          rm -f .flutter-plugins-dependencies .flutter-plugins
-          rm -rf android/.gradle android/.flutter-plugins-dependencies
+          # Andar wale project folder me jakar files clean karna
+          cd RENT-MANAGER || true
+          rm -f .flutter-plugins-dependencies .flutter-plugins pubspec.lock
           flutter clean
           flutter pub get
-          
-          # Native configurations overwrite to bypass validation checks on plugins
-          cd android
-          echo "flutter.sdk=$(flutter sdk-path)" > local.properties
-          echo "flutter.compileSdkVersion=36" >> local.properties
-          echo "flutter.targetSdkVersion=36" >> local.properties
-          cd ..
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses || true
 
-      - name: Build APK (Force Dynamic Manifest Compilation)
-        # Yeh environment configuration parameters compiler ko global target values inject karte hain
-        env:
-          GRADLE_OPTS: "-Dorg.gradle.project.compileSdkVersion=36 -Dorg.gradle.project.targetSdkVersion=36"
-        run: flutter build apk --release --build-name=1.0.0 --build-number=1
+      - name: Build APK (Nested Path Enforce)
+        run: |
+          cd RENT-MANAGER || true
+          flutter build apk --release --build-name=1.0.0 --build-number=1
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: rent-manager-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          path: "**/build/app/outputs/flutter-apk/app-release.apk"
