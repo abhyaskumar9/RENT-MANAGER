@@ -5,17 +5,9 @@ allprojects {
     }
 }
 
-val flutterProjectRoot = rootProject.projectDir.parentFile
-val pluginsFile = java.io.File(flutterProjectRoot, ".flutter-plugins-dependencies")
-if (pluginsFile.exists()) {
-    apply(from = "$flutterProjectRoot/.flutter-plugins-dependencies")
-}
-
 subprojects {
     project.evaluationDependsOn(":app")
-    // rootProject.subprojects.forEach { it.setBuildDir(null) }
     
-    // Yeh tarika Gradle ke naye versions me 100% crash-free chalta hai
     plugins.withId("com.android.application") {
         configure<com.android.build.api.dsl.ApplicationExtension> {
             compileSdk = 34
