@@ -17,12 +17,10 @@ tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
 
-// Bina afterEvaluate ke direct plugins ko target karne wala safe block
+// Sabse safe aur standard tarika saare plugins ko SDK 36 par force karne ka
 subprojects {
-    plugins.withType(com.android.build.gradle.BasePlugin).configureEach {
-        project.android {
-            compileSdkVersion 36
-            targetSdkVersion 36
-        }
+    ext {
+        compileSdkVersion = 36
+        targetSdkVersion = 36
     }
 }
