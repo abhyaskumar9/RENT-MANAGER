@@ -6,7 +6,9 @@ plugins {
 
 android {
     namespace = "com.rent_manager.app"
-    compileSdk = 36 
+    
+    // Yeh automatic local.properties se 36 utha lega aur plugins par bhi apply karega
+    compileSdk = flutter.compileSdkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -20,7 +22,7 @@ android {
     defaultConfig {
         applicationId = "com.rent_manager.app"
         minSdk = 21
-        targetSdk = 36 
+        targetSdk = flutter.targetSdkVersion
         versionCode = 1
         versionName = "1.0.0"
     }
