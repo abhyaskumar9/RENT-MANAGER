@@ -5,6 +5,9 @@ plugins {
 }
 
 android {
+    // Naye Gradle ke liye namespace zaroori hai
+    namespace "com.example.rent_manager"
+    
     compileSdkVersion 36
 
     compileOptions {
