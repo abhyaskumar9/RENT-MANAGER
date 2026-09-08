@@ -29,29 +29,17 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
-          cache: false
 
-      - name: Reset Cache & Force SDK 36 Configurations
+      - name: Clean Project and Get Dependencies
         run: |
-          rm -f .flutter-plugins-dependencies .flutter-plugins pubspec.lock
           flutter clean
           flutter pub get
-          
-          # Native environment inject karne ka sahi tarika bina kisi command options error ke
-          cd android
-          echo "flutter.compileSdkVersion=36" >> local.properties
-          echo "flutter.targetSdkVersion=36" >> local.properties
-          
-          # Global gradle engine ko override karne ke liye property file setup
-          echo "compileSdkVersion=36" >> gradle.properties
-          echo "targetSdkVersion=36" >> gradle.properties
-          cd ..
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses || true
 
-      - name: Build APK (Clean Execution)
-        run: flutter build apk --release --build-name=1.0.0 --build-number=1
+      - name: Build APK
+        run: flutter build apk --release
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
