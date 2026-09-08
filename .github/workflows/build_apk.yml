@@ -5,10 +5,6 @@ on:
     branches:
       - main
       - master
-  pull_request:
-    branches:
-      - main
-      - master
 
 jobs:
   build:
@@ -30,19 +26,14 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Clean Project and Get Dependencies
+      - name: Hard Clean Project
         run: |
           flutter clean
+          flutter pub cache clean --force
           flutter pub get
 
       - name: Accept Android Licenses
         run: yes | flutter doctor --android-licenses || true
 
-      - name: Build APK
-        run: flutter build apk --release
-
-      - name: Upload APK Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: rent-manager-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Build APK (Forced Fix Mode)
+        run: flutter build apk --release --no-pub
