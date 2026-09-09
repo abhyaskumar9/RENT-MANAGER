@@ -12,11 +12,10 @@ dependencies:
 
   cupertino_icons: ^1.0.6
 
-  # Yeh bilkul exact stable versions hain jo naye Flutter aur SDK 34 dono par perfect chalenge
+  # Stable aur fully compatible versions (android_lifecycle hata diya gaya hai)
   file_picker: 8.0.0
   share_plus: 7.2.1
   shared_preferences: 2.2.2
-  flutter_plugin_android_lifecycle: 2.0.17
   url_launcher: 6.2.5
   image_picker: 1.0.7
   path_provider: 2.1.2
