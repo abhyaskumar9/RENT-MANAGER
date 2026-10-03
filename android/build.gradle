@@ -1,3 +1,17 @@
+buildscript {
+    ext.kotlin_version = '1.9.22' // यह आपके पुराने कोटलिन को नए वर्शन में बदल देगा
+    repositories {
+        google()
+        mavenCentral()
+    }
+
+    dependencies {
+        // यह आपके एंड्रॉइड बिल्ड टूल को लेटेस्ट वर्शन पर सेट करेगा
+        classpath 'com.android.tools.build:gradle:8.2.2'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
+}
+
 allprojects {
     repositories {
         google()
@@ -5,30 +19,27 @@ allprojects {
     }
 }
 
-rootProject.buildDir = "../build"
+rootProject.buildDir = '../build'
 subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
-}
-subprojects {
-    project.evaluationDependsOn(":app")
-}
-
-tasks.register("clean", Delete) {
-    delete rootProject.buildDir
-}
-
-// Yeh universal hook hai jo har chote-bade plugin ke version ko stable par auto-fix karega
-subprojects { project ->
-    project.plugins.whenPluginAdded { plugin ->
-        if (plugin.class.name.startsWith("com.android.build.gradle.AppPlugin") ||
-            plugin.class.name.startsWith("com.android.build.gradle.LibraryPlugin")) {
+    
+    // यह जादुई कोड भविष्य में आने वाले सभी पैकेजेस को अपने आप Android 36 पर सेट कर देगा
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
             project.android {
-                compileSdkVersion 34
+                compileSdkVersion 36
                 buildToolsVersion "34.0.0"
                 defaultConfig {
-                    targetSdkVersion 34
+                    targetSdkVersion 36
                 }
             }
         }
     }
+}
+subprojects {
+    project.evaluationDependsOn(':app')
+}
+
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
 }
