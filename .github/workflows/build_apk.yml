@@ -27,15 +27,13 @@ jobs:
           channel: 'stable'
 
       - name: Install Dependencies
-        working-directory: RENT-MANAGER
         run: flutter pub get
 
       - name: Build APK (Bypass Version Check)
-        working-directory: RENT-MANAGER
         run: flutter build apk --release --android-skip-build-dependency-validation
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: release-apk
-          path: RENT-MANAGER/build/app/outputs/flutter-apk/app-release.apk
+          path: build/app/outputs/flutter-apk/app-release.apk
