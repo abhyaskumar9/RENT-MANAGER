@@ -26,20 +26,13 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Clean Duplicates & Standard Build
+      - name: Fix MainActivity & Build APK
         run: |
-          # 1. अंदर वाले डुप्लीकेट फोल्डर को पूरी तरह डिलीट करें ताकि कंफ्यूजन खत्म हो जाए
-          if [ -d "RENT-MANAGER/RENT-MANAGER" ]; then
-            echo "Deleting internal duplicate folder to prevent path conflicts..."
-            rm -rf "RENT-MANAGER/RENT-MANAGER"
-          fi
-
-          # 2. जो बाहर वाला असली RENT-MANAGER फोल्डर है, उसकी MainActivity को ठीक करें
-          MAIN_ACTIVITY_FILE=$(find RENT-MANAGER/android -name "MainActivity.kt" -o -name "MainActivity.java" | head -n 1)
-          if [ ! -z "$MAIN_ACTIVITY_FILE" ]; then
-            echo "Fixing MainActivity in: $MAIN_ACTIVITY_FILE"
-            rm -f "$MAIN_ACTIVITY_FILE"
-            dir_path=$(dirname "$MAIN_ACTIVITY_FILE")
+          # 1. जहां भी MainActivity.kt या MainActivity.java है, उसे बिल्कुल सही कोटलिन कोड से बदलें
+          find . -name "MainActivity.kt" -o -name "MainActivity.java" | while read -r file; do
+            echo "Fixing MainActivity in: $file"
+            rm -f "$file"
+            dir_path=$(dirname "$file")
             cat << 'EOF' > "$dir_path/MainActivity.kt"
           package com.example.management_app_code
 
@@ -48,18 +41,15 @@ jobs:
           class MainActivity: FlutterActivity() {
           }
           EOF
-          fi
+          done
 
-          # 3. अब सिर्फ बाहर वाले सिंगल RENT-MANAGER फोल्डर के अंदर जाकर बिल्ड करें
-          cd RENT-MANAGER
-          echo "Building application inside: $(pwd)"
-          
+          # 2. बिना किसी फोल्डर के झंझट के सीधे यहीं रूट पर ऐप बिल्ड करें
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
           
-          # 4. APK को बाहर कॉपी करें
-          mkdir -p ../build_output
-          cp build/app/outputs/flutter-apk/app-release.apk ../build_output/app-release.apk
+          # 3. बनी हुई APK को सुरक्षित स्थान पर कॉपी करें
+          mkdir -p build_output
+          cp build/app/outputs/flutter-apk/app-release.apk build_output/app-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
