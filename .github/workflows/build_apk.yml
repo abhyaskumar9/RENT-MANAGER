@@ -1,14 +1,13 @@
-name: Build Flutter APK
+name: Build APK
 
 on:
   push:
     branches:
       - main
-      - master
+  workflow_dispatch:
 
 jobs:
   build:
-    name: Build APK
     runs-on: ubuntu-latest
 
     steps:
@@ -26,14 +25,11 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Hard Clean Project
-        run: |
-          flutter clean
-          flutter pub cache clean --force
-          flutter pub get
+      - name: Clean Project
+        run: flutter clean
 
-      - name: Accept Android Licenses
-        run: yes | flutter doctor --android-licenses || true
+      - name: Get Dependencies
+        run: flutter pub get
 
-      - name: Build APK (Forced Fix Mode)
-        run: flutter build apk --release --no-pub
+      - name: Build Production APK
+        run: flutter build apk --release
