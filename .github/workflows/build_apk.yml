@@ -26,18 +26,12 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Auto Find Flutter Project, Fix Files & Build
+      - name: Force Fix All Duplicates & Build APK
         run: |
-          # 1. असली प्रोजेक्ट फोल्डर को ऑटोमैटिक ढूंढें
-          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
-          echo "Found Flutter project in: $FLUTTER_DIR"
-          cd "$FLUTTER_DIR"
-          
-          # 2. खराब MainActivity.kt फाइल को खुद ढूंढकर सही कोड से बदलें
-          MAIN_ACTIVITY_FILE=$(find . -name "MainActivity.kt")
-          echo "Fixing MainActivity in: $MAIN_ACTIVITY_FILE"
-          
-          cat << 'EOF' > "$MAIN_ACTIVITY_FILE"
+          # 1. पूरे प्रोजेक्ट में जहां भी MainActivity.kt नाम की फाइल है, सबको एक साथ ठीक करें
+          find . -name "MainActivity.kt" | while read -r file; do
+            echo "Force fixing MainActivity in: $file"
+            cat << 'EOF' > "$file"
           package com.example.management_app_code
 
           import io.flutter.embedding.android.FlutterActivity
@@ -45,17 +39,28 @@ jobs:
           class MainActivity: FlutterActivity() {
           }
           EOF
+          done
+
+          # 2. असली एक्टिव फ़ोल्डर के अंदर जाकर डिपेंडेंसी इंस्टॉल करें
+          # हम सीधे अंदर वाले फ़ोल्डर में टारगेट करेंगे जहाँ असली कोड है
+          if [ -d "RENT-MANAGER/RENT-MANAGER" ]; then
+            cd RENT-MANAGER/RENT-MANAGER
+          elif [ -d "RENT-MANAGER" ]; then
+            cd RENT-MANAGER
+          fi
+
+          echo "Current directory for build: $(pwd)"
           
-          # 3. डिपेंडेंसी इंस्टॉल और बिल्ड करें
+          # 3. ऐप बिल्ड करें
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
           
-          # 4. APK को बाहर रूट पर कॉपी करें ताकि डाउनलोड हो सके
+          # 4. APK को सुरक्षित स्थान पर कॉपी करें ताकि आसानी से डाउनलोड हो सके
           mkdir -p ../../build_output
           cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: release-apk
+          name: Rent-Manager-APK
           path: build_output/app-release.apk
