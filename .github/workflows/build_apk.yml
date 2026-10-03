@@ -26,18 +26,19 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Force Clean & Fix MainActivity (Java & Kotlin)
+      - name: Sync Master Configurations & Build APK
         run: |
-          # 1. पूरे प्रोजेक्ट में जहां भी MainActivity.kt या MainActivity.java है, उसे ढूंढकर पूरी तरह साफ करें
+          # 1. अगर डबल फोल्डर मौजूद है, तो बाहर के सही एंड्रॉइड सेटअप को अंदर कॉपी करें
+          if [ -d "RENT-MANAGER/RENT-MANAGER/android" ] && [ -d "RENT-MANAGER/android" ]; then
+            echo "Syncing working android configurations to internal duplicate folder..."
+            cp -r RENT-MANAGER/android/* RENT-MANAGER/RENT-MANAGER/android/
+          fi
+
+          # 2. सभी जगह की MainActivity को फ्रेश कोटलिन कोड से ओवरराइट करें
           find . -name "MainActivity.kt" -o -name "MainActivity.java" | while read -r file; do
-            echo "Deleting old file: $file"
             rm -f "$file"
-            
-            # उसी फोल्डर के पाथ को निकालकर वहां केवल सही कोटलिन (.kt) फाइल बनाएं
             dir_path=$(dirname "$file")
             new_file="$dir_path/MainActivity.kt"
-            
-            echo "Creating fresh MainActivity.kt in: $new_file"
             cat << 'EOF' > "$new_file"
           package com.example.management_app_code
 
@@ -48,20 +49,20 @@ jobs:
           EOF
           done
 
-          # 2. सही वर्किंग डायरेक्टरी सेट करें
+          # 3. सही वर्किंग डायरेक्टरी में कदम रखें
           if [ -d "RENT-MANAGER/RENT-MANAGER" ]; then
             cd RENT-MANAGER/RENT-MANAGER
           elif [ -d "RENT-MANAGER" ]; then
             cd RENT-MANAGER
           fi
 
-          echo "Current build directory: $(pwd)"
+          echo "Final build path confirmed at: $(pwd)"
           
-          # 3. ऐप डिपेंडेंसी इंस्टॉल और बिल्ड करें
+          # 4. ऐप क्लीन बिल्ड रन करें
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
           
-          # 4. APK को बाहर रूट पर कॉपी करें ताकि आसानी से डाउनलोड हो सके
+          # 5. बनी हुई APK को बाहर सुरक्षित निकालें
           mkdir -p ../../build_output
           cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk
 
