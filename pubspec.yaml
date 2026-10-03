@@ -12,12 +12,12 @@ dependencies:
 
   cupertino_icons: ^1.0.6
   # Stable and fully compatible versions
-  file_picker: 8.0.8
-  share_plus: 7.2.1
-  shared_preferences: 2.2.2
-  url_launcher: 6.2.5
-  image_picker: 1.0.7
-  path_provider: 2.1.2
+  file_picker: ^8.1.2
+  share_plus: ^7.2.1
+  shared_preferences: ^2.2.2
+  url_launcher: ^6.2.5
+  image_picker: ^1.0.7
+  path_provider: ^2.1.2
 
 dev_dependencies:
   flutter_test:
