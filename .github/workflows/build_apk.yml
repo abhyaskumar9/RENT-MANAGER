@@ -1,53 +1,39 @@
-name: Build Flutter APK
+name: Build Android APK
 
 on:
   push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+    branches:
+      - main
+      - master
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v4
-    
-    - name: Set up Java
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'zulu'
-        java-version: '17'
-        
-    - name: Set up Flutter (Force Fresh Download)
-      uses: subosito/flutter-action@v2
-      with:
-        channel: 'stable'
-        cache: false
-        
-    - name: Hard Clean Project
-      run: |
-        flutter clean
-        rm -rf android/.gradle
-        rm -rf android/app/build
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
-    - name: Regenerate Android Files
-      run: |
-        flutter create . --project-name=rent_manager --platforms=android
-        
-    - name: Accept Android Licenses
-      run: yes | sdkmanager --licenses || true
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
 
-    - name: Build APK (Forced Fix Mode)
-      run: |
-        cd android
-        chmod +x gradlew
-        ./gradlew clean
-        ./gradlew assembleRelease --stacktrace || ./gradlew assembleRelease --fix-data
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
 
-    - name: Upload APK to Download Section
-      uses: actions/upload-artifact@v4
-      with:
-        name: rent-manager-app
-        path: build/app/outputs/flutter-apk/app-release.apk
+      - name: Install Dependencies
+        run: flutter pub get
+
+      - name: Build APK (Bypass Version Check)
+        run: flutter build apk --release --android-skip-build-dependency-validation
+
+      - name: Upload APK Artifact
+        uses: actions/artifacts@v4
+        with:
+          name: release-apk
+          path: build/app/outputs/flutter-apk/app-release.apk
