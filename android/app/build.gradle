@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace "com.example.rent_manager"
-    compileSdkVersion 34
+    compileSdkVersion 36
     buildToolsVersion "34.0.0"
 
     compileOptions {
@@ -25,7 +25,7 @@ android {
     defaultConfig {
         applicationId "com.example.rent_manager"
         minSdkVersion 21
-        targetSdkVersion 34
+        targetSdkVersion 36
         versionCode 1
         versionName "1.0.0"
     }
