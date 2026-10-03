@@ -30,6 +30,11 @@ jobs:
         flutter clean
         rm -rf android/.gradle
         rm -rf android/app/build
+
+    - name: Regenerate Android Files
+      run: |
+        # यह कमांड गायब हुई gradlew फाइल को अपने आप दोबारा बना देगी
+        flutter create . --platforms=android
         
     - name: Accept Android Licenses
       run: yes | sdkmanager --licenses || true
