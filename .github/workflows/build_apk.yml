@@ -26,20 +26,21 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Sync Master Configurations & Build APK
+      - name: Clean Duplicates & Standard Build
         run: |
-          # 1. अगर डबल फोल्डर मौजूद है, तो बाहर के सही एंड्रॉइड सेटअप को अंदर कॉपी करें
-          if [ -d "RENT-MANAGER/RENT-MANAGER/android" ] && [ -d "RENT-MANAGER/android" ]; then
-            echo "Syncing working android configurations to internal duplicate folder..."
-            cp -r RENT-MANAGER/android/* RENT-MANAGER/RENT-MANAGER/android/
+          # 1. अंदर वाले डुप्लीकेट फोल्डर को पूरी तरह डिलीट करें ताकि कंफ्यूजन खत्म हो जाए
+          if [ -d "RENT-MANAGER/RENT-MANAGER" ]; then
+            echo "Deleting internal duplicate folder to prevent path conflicts..."
+            rm -rf "RENT-MANAGER/RENT-MANAGER"
           fi
 
-          # 2. सभी जगह की MainActivity को फ्रेश कोटलिन कोड से ओवरराइट करें
-          find . -name "MainActivity.kt" -o -name "MainActivity.java" | while read -r file; do
-            rm -f "$file"
-            dir_path=$(dirname "$file")
-            new_file="$dir_path/MainActivity.kt"
-            cat << 'EOF' > "$new_file"
+          # 2. जो बाहर वाला असली RENT-MANAGER फोल्डर है, उसकी MainActivity को ठीक करें
+          MAIN_ACTIVITY_FILE=$(find RENT-MANAGER/android -name "MainActivity.kt" -o -name "MainActivity.java" | head -n 1)
+          if [ ! -z "$MAIN_ACTIVITY_FILE" ]; then
+            echo "Fixing MainActivity in: $MAIN_ACTIVITY_FILE"
+            rm -f "$MAIN_ACTIVITY_FILE"
+            dir_path=$(dirname "$MAIN_ACTIVITY_FILE")
+            cat << 'EOF' > "$dir_path/MainActivity.kt"
           package com.example.management_app_code
 
           import io.flutter.embedding.android.FlutterActivity
@@ -47,24 +48,18 @@ jobs:
           class MainActivity: FlutterActivity() {
           }
           EOF
-          done
-
-          # 3. सही वर्किंग डायरेक्टरी में कदम रखें
-          if [ -d "RENT-MANAGER/RENT-MANAGER" ]; then
-            cd RENT-MANAGER/RENT-MANAGER
-          elif [ -d "RENT-MANAGER" ]; then
-            cd RENT-MANAGER
           fi
 
-          echo "Final build path confirmed at: $(pwd)"
+          # 3. अब सिर्फ बाहर वाले सिंगल RENT-MANAGER फोल्डर के अंदर जाकर बिल्ड करें
+          cd RENT-MANAGER
+          echo "Building application inside: $(pwd)"
           
-          # 4. ऐप क्लीन बिल्ड रन करें
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
           
-          # 5. बनी हुई APK को बाहर सुरक्षित निकालें
-          mkdir -p ../../build_output
-          cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk
+          # 4. APK को बाहर कॉपी करें
+          mkdir -p ../build_output
+          cp build/app/outputs/flutter-apk/app-release.apk ../build_output/app-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
