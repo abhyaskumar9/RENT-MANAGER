@@ -20,10 +20,11 @@ jobs:
         distribution: 'zulu'
         java-version: '17'
         
-    - name: Set up Flutter (Official)
-      uses: flutter-actions/setup-flutter@v3
+    - name: Set up Flutter (Force Fresh Download)
+      uses: subosito/flutter-action@v2
       with:
-        version: '3.13.0'
+        channel: 'stable'
+        cache: false
         
     - name: Hard Clean Project
       run: |
