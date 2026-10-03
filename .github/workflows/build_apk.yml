@@ -26,18 +26,31 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Auto Find Flutter Project & Build
+      - name: Auto Find Flutter Project, Fix Files & Build
         run: |
-          # यह कमांड खुद आपके असली प्रोजेक्ट फोल्डर को ढूंढेगी
+          # 1. असली प्रोजेक्ट फोल्डर को ऑटोमैटिक ढूंढें
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           echo "Found Flutter project in: $FLUTTER_DIR"
           cd "$FLUTTER_DIR"
           
-          # डिपेंडेंसी इंस्टॉल और बिल्ड करें
+          # 2. खराब MainActivity.kt फाइल को खुद ढूंढकर सही कोड से बदलें
+          MAIN_ACTIVITY_FILE=$(find . -name "MainActivity.kt")
+          echo "Fixing MainActivity in: $MAIN_ACTIVITY_FILE"
+          
+          cat << 'EOF' > "$MAIN_ACTIVITY_FILE"
+          package com.example.management_app_code
+
+          import io.flutter.embedding.android.FlutterActivity
+
+          class MainActivity: FlutterActivity() {
+          }
+          EOF
+          
+          # 3. डिपेंडेंसी इंस्टॉल और बिल्ड करें
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation
           
-          # APK को बाहर रूट पर कॉपी करें ताकि डाउनलोड हो सके
+          # 4. APK को बाहर रूट पर कॉपी करें ताकि डाउनलोड हो सके
           mkdir -p ../../build_output
           cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk
 
