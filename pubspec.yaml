@@ -11,9 +11,8 @@ dependencies:
     sdk: flutter
 
   cupertino_icons: ^1.0.6
-
-  # Stable aur fully compatible versions (android_lifecycle hata diya gaya hai)
-  file_picker: 8.0.0
+  # Stable and fully compatible versions
+  file_picker: 8.0.8
   share_plus: 7.2.1
   shared_preferences: 2.2.2
   url_launcher: 6.2.5
