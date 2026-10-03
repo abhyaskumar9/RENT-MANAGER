@@ -37,5 +37,6 @@ jobs:
     - name: Build APK (Forced Fix Mode)
       run: |
         cd android
+        chmod +x gradlew
         ./gradlew clean
         ./gradlew assembleRelease --stacktrace || ./gradlew assembleRelease --fix-data
