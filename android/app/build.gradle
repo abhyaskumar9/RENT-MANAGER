@@ -44,3 +44,15 @@ flutter {
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22"
 }
+
+// यह कोड आपके सभी पैकेजेस को जबरदस्ती Android 36 पर कंपाइल करेगा
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                compileSdkVersion 36
+                buildToolsVersion "34.0.0"
+            }
+        }
+    }
+}
