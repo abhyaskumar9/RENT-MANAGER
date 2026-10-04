@@ -26,7 +26,7 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Nuke Android Folder & Rebuild Fresh
+      - name: Nuke Android Folder, Upgrade SDK & Rebuild Fresh
         run: |
           # 1. असली फ्लटर प्रोजेक्ट फोल्डर का पता लगाएं
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
@@ -42,11 +42,16 @@ jobs:
           echo "Creating brand new fresh android project layout..."
           flutter create . --platforms=android
           
-          # 4. बिना किसी पुराने वैलिडेशन चेक के सीधे बिल्ड रन करें
+          # 4. नए फाइल_पिकर प्लगइन के लिए डिफ़ॉल्ट compileSdk को जबरदस्ती 35 पर सेट करें
+          echo "Upgrading compileSdk and targetSdk to 35 for plugin compatibility..."
+          sed -i 's/compileSdk = .*/compileSdk = 35/g' android/app/build.gradle
+          sed -i 's/targetSdk = .*/targetSdk = 35/g' android/app/build.gradle
+          
+          # 5. बिना किसी पुराने वैलिडेशन चेक के सीधे बिल्ड रन करें
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation --no-tree-shake-icons
           
-          # 5. बनी हुई फ्रेश APK को बाहर डाउनलोड के लिए भेजें
+          # 6. बनी हुई फ्रेश APK को बाहर डाउनलोड के लिए भेजें
           mkdir -p ../../build_output
           cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk
 
