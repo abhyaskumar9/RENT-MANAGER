@@ -32,7 +32,15 @@ jobs:
           cp -r . /home/runner/clean_app/
           cd /home/runner/clean_app
 
-          # Clean android/build.gradle with forced Kotlin 1.8 version
+          # Force global Kotlin version to 1.8.22 for all plugins in gradle.properties
+          cat << 'EOF' > android/gradle.properties
+          org.gradle.jvmargs=-Xmx1536M
+          android.useAndroidX=true
+          android.enableJetifier=true
+          kotlin.version=1.8.22
+          EOF
+
+          # Clean android/build.gradle
           cat << 'EOF' > android/build.gradle
           buildscript {
               ext.kotlin_version = '1.8.22'
@@ -50,15 +58,6 @@ jobs:
               repositories {
                   google()
                   mavenCentral()
-              }
-          }
-
-          subprojects {
-              tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-                  kotlinOptions {
-                      jvmTarget = '1.8'
-                      languageVersion = '1.8'
-                  }
               }
           }
 
