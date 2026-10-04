@@ -26,38 +26,41 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Absolute Nuke All Duplicates & Fresh Rebuild
+      - name: Create Clean Sandbox & Build APK
         run: |
-          # 1. पूरे प्रोजेक्ट में जहां भी pubspec.yaml है, वहां खुद ही पहुंचें
-          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
-          cd "$FLUTTER_DIR"
-          echo "Working in clean directory: $(pwd)"
+          # 1. असली फ्लटर प्रोजेक्ट फोल्डर (जहां lib फोल्डर है) का पता लगाएं
+          ORIGINAL_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
+          echo "Original project found in: $ORIGINAL_DIR"
           
-          # 2. पूरे प्रोजेक्ट में जहां भी पुराना या डुप्लीकेट android फोल्डर है, सबको चुन-चुन कर डिलीट करें
-          echo "Nuking all old android folders across the project..."
-          find . -type d -name "android" -exec rm -rf {} +
-          rm -rf .gradle .dart_tool
+          # 2. पुराने कबाड़ से दूर, सर्वर पर एक बिल्कुल नया साफ-सुथरा फोल्डर (Sandbox) बनाएं
+          mkdir -p /home/runner/clean_app
           
-          # 3. फ्लटर को कहें कि वह एकदम नया और फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट बनाए
-          echo "Creating brand new fresh android project layout..."
-          flutter create . --platforms=android
+          # 3. पुराने प्रोजेक्ट से केवल मुख्य कोड (lib, assets) और pubspec.yaml कॉपी करें
+          cp -r $ORIGINAL_DIR/lib /home/runner/clean_app/
+          cp $ORIGINAL_DIR/pubspec.yaml /home/runner/clean_app/
+          if [ -d "$ORIGINAL_DIR/assets" ]; then cp -r $ORIGINAL_DIR/assets /home/runner/clean_app/; fi
           
-          # 4. लेटेस्ट प्लगइन्स की डिमांड के मुताबिक compileSdk और targetSdk को सीधे 36 पर सेट करें
+          # 4. नए फोल्डर के अंदर जाएं
+          cd /home/runner/clean_app
+          
+          # 5. यहां एकदम फ्रेश बिना किसी पुराने एरर वाला एंड्रॉइड सेटअप बनाएं
+          flutter create . --platforms=android --project-name=rent_manager_app
+          
+          # 6. लेटेस्ट प्लगइन्स की डिमांड के मुताबिक compileSdk और targetSdk को जबरदस्ती 36 पर सेट करें
           find android/app/ -name "build.gradle*" | while read -r gradle_file; do
-            echo "Upgrading SDK versions to 36 in: $gradle_file"
             sed -i 's/compileSdk = .*/compileSdk = 36/g' "$gradle_file"
             sed -i 's/targetSdk = .*/targetSdk = 36/g' "$gradle_file"
             sed -i 's/compileSdk(.*/compileSdk(36)/g' "$gradle_file"
             sed -i 's/targetSdk(.*/targetSdk(36)/g' "$gradle_file"
           done
           
-          # 5. बिना किसी पुराने वैलिडेशन चेक के सीधे बिल्ड रन करें
+          # 7. डिपेंडेंसी लोड करें और बिना किसी रोक-टोक के ऐप बिल्ड करें
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation --no-tree-shake-icons
           
-          # 6. बनी हुई फ्रेश APK को बाहर डाउनलोड के लिए भेजें
-          mkdir -p ../../build_output
-          cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk || cp build/app/outputs/apk/release/app-release.apk ../../build_output/app-release.apk
+          # 8. बनी हुई बिल्कुल फ्रेश APK को गिटहब के बाहर आउटपुट फोल्डर में भेजें
+          mkdir -p $GITHUB_WORKSPACE/build_output
+          cp build/app/outputs/flutter-apk/app-release.apk $GITHUB_WORKSPACE/build_output/app-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
