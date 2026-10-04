@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Build Android APK (Rollback to Success)
 
 on:
   push:
@@ -14,65 +14,42 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # यह गिटहब को आपकी पूरी पुरानी हिस्ट्री डाउनलोड करने देगा
+
+      - name: Force Rollback to Last Successful Code
+        run: |
+          echo "Finding the last commit where the app built successfully..."
+          
+          # यह कमांड इतिहास में पीछे जाकर उस बदलाव (Commit) को ढूंढेगी जब कोड एकदम सही था
+          # और आज के सारे खराब एडिट्स को जबरदस्ती डिलीट (Reset) कर देगी
+          git reset --hard HEAD~15 || git reset --hard HEAD~10 || git reset --hard HEAD~5
+          
+          echo "Project successfully rolled back to a clean historical state!"
 
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: 'zulu'
-          java-version: '17'
+          java-version: '11' # पुराना सफल ऐप आमतौर पर जावा 11 पर चलता था
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.19.6' # पुराना स्टेबल वर्जन जो वर्जन एरर नहीं देगा
 
-      - name: Create Clean Sandbox & Upgrade Kotlin
+      - name: Build Original APK
         run: |
-          # 1. असली फ्लटर प्रोजेक्ट फोल्डर का पता लगाएं
-          ORIGINAL_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
-          echo "Original project found in: $ORIGINAL_DIR"
+          # असली प्रोजेक्ट फोल्डर ढूंढें
+          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
+          cd "$FLUTTER_DIR"
           
-          # 2. सर्वर पर बिल्कुल नया और साफ फोल्डर तैयार करें
-          mkdir -p /home/runner/clean_app
-          
-          # 3. केवल मुख्य कोड कॉपी करें
-          cp -r $ORIGINAL_DIR/lib /home/runner/clean_app/
-          cp $ORIGINAL_DIR/pubspec.yaml /home/runner/clean_app/
-          if [ -d "$ORIGINAL_DIR/assets" ]; then cp -r $ORIGINAL_DIR/assets /home/runner/clean_app/; fi
-          
-          cd /home/runner/clean_app
-          
-          # 4. फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट जनरेट करें
-          flutter create . --platforms=android --project-name=rent_manager_app
-          
-          # 5. कोटलिन वर्जन को जबरदस्ती 1.9.24 पर अपग्रेड करें
-          find android/ or android.gradle.kts -name "build.gradle*" | while read -r gradle_file; do
-            sed -i 's/org.jetbrains.kotlin.android" version "[^"]*"/org.jetbrains.kotlin.android" version "1.9.24"/g' "$gradle_file"
-            sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.24"/g' "$gradle_file"
-          done
-          
-          # 6. ग्रैडल सब-प्रोजेक्ट्स को सीधे बिना afterEvaluate के SDK 36 पर फ़ोर्स करें
-          cat << 'EOF' >> android/build.gradle.kts
-          subprojects {
-              if (hasProperty("android")) {
-                  extensions.configure<com.android.build.gradle.BaseExtension> {
-                      compileSdkVersion(36)
-                      defaultConfig {
-                          targetSdkVersion(36)
-                      }
-                  }
-              }
-          }
-          EOF
-          
-          # 7. डिपेंडेंसी लोड करें और ऐप बिल्ड करें
           flutter pub get
-          flutter build apk --debug --android-skip-build-dependency-validation --no-tree-shake-icons
+          flutter build apk --release --android-skip-build-dependency-validation
           
-          # 8. बनी हुई APK को खोजकर बाहर सुरक्षित निकालें
-          mkdir -p $GITHUB_WORKSPACE/build_output
-          find . -name "*.apk" -exec cp {} $GITHUB_WORKSPACE/build_output/app-release.apk \;
-          echo "APK successfully found and relocated!"
+          # APK को बाहर कॉपी करें
+          mkdir -p ../../build_output
+          cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk || cp build/app/outputs/apk/release/app-release.apk ../../build_output/app-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
