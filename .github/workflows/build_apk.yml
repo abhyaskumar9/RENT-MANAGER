@@ -42,10 +42,15 @@ jobs:
           echo "Creating brand new fresh android project layout..."
           flutter create . --platforms=android
           
-          # 4. नए फाइल_पिकर प्लगइन के लिए डिफ़ॉल्ट compileSdk को जबरदस्ती 35 पर सेट करें
+          # 4. नए फाइल_पिकर प्लगइन के लिए डिफ़ॉल्ट compileSdk को जबरदस्ती 35 पर सेट करें (दोनों फॉर्मेट के लिए)
           echo "Upgrading compileSdk and targetSdk to 35 for plugin compatibility..."
-          sed -i 's/compileSdk = .*/compileSdk = 35/g' android/app/build.gradle
-          sed -i 's/targetSdk = .*/targetSdk = 35/g' android/app/build.gradle
+          find android/app/ -name "build.gradle*" | while read -r gradle_file; do
+            echo "Modifying file: $gradle_file"
+            sed -i 's/compileSdk = .*/compileSdk = 35/g' "$gradle_file"
+            sed -i 's/targetSdk = .*/targetSdk = 35/g' "$gradle_file"
+            sed -i 's/compileSdk(.*/compileSdk(35)/g' "$gradle_file"
+            sed -i 's/targetSdk(.*/targetSdk(35)/g' "$gradle_file"
+          done
           
           # 5. बिना किसी पुराने वैलिडेशन चेक के सीधे बिल्ड रन करें
           flutter pub get
