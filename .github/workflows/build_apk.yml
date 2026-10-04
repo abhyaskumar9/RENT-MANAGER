@@ -32,7 +32,7 @@ jobs:
           cp -r . /home/runner/clean_app/
           cd /home/runner/clean_app
 
-          # Clean android/build.gradle in Groovy format
+          # Clean android/build.gradle with forced Kotlin 1.8 version
           cat << 'EOF' > android/build.gradle
           buildscript {
               ext.kotlin_version = '1.8.22'
@@ -50,6 +50,15 @@ jobs:
               repositories {
                   google()
                   mavenCentral()
+              }
+          }
+
+          subprojects {
+              tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+                  kotlinOptions {
+                      jvmTarget = '1.8'
+                      languageVersion = '1.8'
+                  }
               }
           }
 
