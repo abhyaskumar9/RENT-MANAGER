@@ -12,7 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -25,14 +26,59 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Get Dependencies
-        run: flutter pub get
-
-      - name: Build APK
-        run: flutter build apk --debug --android-skip-build-dependency-validation --no-tree-shake-icons
+      - name: Create Clean Sandbox & Upgrade Kotlin
+        run: |
+          # 1. असली फ्लटर प्रोजेक्ट फोल्डर का पता लगाएं
+          ORIGINAL_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
+          echo "Original project found in: $ORIGINAL_DIR"
+          
+          # 2. सर्वर पर बिल्कुल नया और साफ फोल्डर तैयार करें
+          mkdir -p /home/runner/clean_app
+          
+          # 3. केवल मुख्य कोड कॉपी करें
+          cp -r $ORIGINAL_DIR/lib /home/runner/clean_app/
+          cp $ORIGINAL_DIR/pubspec.yaml /home/runner/clean_app/
+          if [ -d "$ORIGINAL_DIR/assets" ]; then cp -r $ORIGINAL_DIR/assets /home/runner/clean_app/; fi
+          
+          cd /home/runner/clean_app
+          
+          # 4. फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट जनरेट करें
+          flutter create . --platforms=android --project-name=rent_manager_app
+          
+          # 5. [कोटलिन फिक्स ब्रह्मास्त्र]: कोटलिन वर्जन को जबरदस्ती 1.9.24 पर अपग्रेड करें
+          # यह कमांड सेटिंग फाइल्स में जाकर पुराना 1.4 वर्जन हटाकर नया वर्जन लिख देगी
+          find android/ -name "build.gradle*" | while read -r gradle_file; do
+            sed -i 's/org.jetbrains.kotlin.android" version "[^"]*"/org.jetbrains.kotlin.android" version "1.9.24"/g' "$gradle_file"
+            sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.24"/g' "$gradle_file"
+          done
+          
+          # 6. ग्रैडल सब-प्रोजेक्ट्स को SDK 36 पर फ़ोर्स करें
+          cat << 'EOF' >> android/build.gradle.kts
+          subprojects {
+              afterEvaluate {
+                  if (hasProperty("android")) {
+                      extensions.configure<com.android.build.gradle.BaseExtension> {
+                          compileSdkVersion(36)
+                          defaultConfig {
+                              targetSdkVersion(36)
+                          }
+                      }
+                  }
+              }
+          }
+          EOF
+          
+          # 7. डिपेंडेंसी लोड करें और ऐप बिल्ड करें
+          flutter pub get
+          flutter build apk --debug --android-skip-build-dependency-validation --no-tree-shake-icons
+          
+          # 8. बनी हुई APK को खोजकर बाहर सुरक्षित निकालें
+          mkdir -p $GITHUB_WORKSPACE/build_output
+          find . -name "*.apk" -exec cp {} $GITHUB_WORKSPACE/build_output/app-release.apk \;
+          echo "APK successfully found and relocated!"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rent-Manager-APK
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: build_output/app-release.apk
