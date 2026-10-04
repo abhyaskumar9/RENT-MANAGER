@@ -26,30 +26,30 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Fix MainActivity & Build APK
+      - name: Force Build APK
         run: |
-          # 1. जहां भी MainActivity.kt या MainActivity.java है, उसे बिल्कुल सही कोटलिन कोड से बदलें
+          # 1. पूरे प्रोजेक्ट में जहां भी pubspec.yaml है, वहां खुद ही पहुंचें
+          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
+          cd "$FLUTTER_DIR"
+          
+          # 2. एरर देने वाली किसी भी MainActivity फाइल को पूरी तरह डिलीट करके एकदम नई फाइल बनाएं
           find . -name "MainActivity.kt" -o -name "MainActivity.java" | while read -r file; do
-            echo "Fixing MainActivity in: $file"
             rm -f "$file"
             dir_path=$(dirname "$file")
             cat << 'EOF' > "$dir_path/MainActivity.kt"
           package com.example.management_app_code
-
           import io.flutter.embedding.android.FlutterActivity
-
-          class MainActivity: FlutterActivity() {
-          }
+          class MainActivity: FlutterActivity() { }
           EOF
           done
-
-          # 2. बिना किसी फोल्डर के झंझट के सीधे यहीं रूट पर ऐप बिल्ड करें
-          flutter pub get
-          flutter build apk --release --android-skip-build-dependency-validation
           
-          # 3. बनी हुई APK को सुरक्षित स्थान पर कॉपी करें
-          mkdir -p build_output
-          cp build/app/outputs/flutter-apk/app-release.apk build_output/app-release.apk
+          # 3. डिपेंडेंसी लोड करें और बिना किसी वेरिफिकेशन के सीधे एपीके बनाएं
+          flutter pub get
+          flutter build apk --release --android-skip-build-dependency-validation --no-tree-shake-icons
+          
+          # 4. बनी हुई APK को बाहर कॉपी करें
+          mkdir -p ../../build_output
+          cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk || cp build/app/outputs/apk/release/app-release.apk ../../build_output/app-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
