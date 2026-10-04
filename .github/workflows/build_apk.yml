@@ -25,61 +25,14 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Create Clean Sandbox & Bypass KGP Build
-        run: |
-          ORIGINAL_DIR=$(pwd)
-          mkdir -p /home/runner/clean_app
-          cp -r . /home/runner/clean_app/
-          cd /home/runner/clean_app
+      - name: Get Dependencies
+        run: flutter pub get
 
-          # Force global Kotlin version to 1.8.22 for all plugins in gradle.properties
-          cat << 'EOF' > android/gradle.properties
-          org.gradle.jvmargs=-Xmx1536M
-          android.useAndroidX=true
-          android.enableJetifier=true
-          kotlin.version=1.8.22
-          EOF
-
-          # Clean android/build.gradle
-          cat << 'EOF' > android/build.gradle
-          buildscript {
-              ext.kotlin_version = '1.8.22'
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:7.3.0'
-                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:\$kotlin_version"
-              }
-          }
-
-          allprojects {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-
-          rootProject.buildDir = "../build"
-          subprojects {
-              project.buildDir = "${rootProject.buildDir}/${project.name}"
-          }
-
-          tasks.register("clean", Delete) {
-              delete rootProject.buildDir
-          }
-          EOF
-
-          flutter pub get
-          flutter build apk --debug --android-skip-build-dependency-validation --no-tree-shake-icons
-
-          mkdir -p $ORIGINAL_DIR/build_output
-          find . -name "*.apk" -exec cp {} $ORIGINAL_DIR/build_output/ \;
-          echo "APK successfully found and relocated"
+      - name: Build APK
+        run: flutter build apk --debug --android-skip-build-dependency-validation --no-tree-shake-icons
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rent-Manager-APK
-          path: build_output/*.apk
+          path: build/app/outputs/flutter-apk/app-debug.apk
