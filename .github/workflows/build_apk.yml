@@ -26,39 +26,58 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Create Clean Sandbox & Build APK
+      - name: Create Clean Sandbox & Force SDK 36 Build
         run: |
-          # 1. असली फ्लटर प्रोजेक्ट फोल्डर (जहां lib फोल्डर है) का पता लगाएं
+          # 1. असली फ्लटर प्रोजेक्ट फोल्डर का पता लगाएं
           ORIGINAL_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           echo "Original project found in: $ORIGINAL_DIR"
           
-          # 2. पुराने कबाड़ से दूर, सर्वर पर एक बिल्कुल नया साफ-सुथरा फोल्डर (Sandbox) बनाएं
+          # 2. सर्वर पर बिल्कुल नया और साफ फोल्डर (Sandbox) तैयार करें
           mkdir -p /home/runner/clean_app
           
-          # 3. पुराने प्रोजेक्ट से केवल मुख्य कोड (lib, assets) और pubspec.yaml कॉपी करें
+          # 3. केवल मुख्य कोड और डिपेंडेंसी फाइल कॉपी करें
           cp -r $ORIGINAL_DIR/lib /home/runner/clean_app/
           cp $ORIGINAL_DIR/pubspec.yaml /home/runner/clean_app/
           if [ -d "$ORIGINAL_DIR/assets" ]; then cp -r $ORIGINAL_DIR/assets /home/runner/clean_app/; fi
           
-          # 4. नए फोल्डर के अंदर जाएं
           cd /home/runner/clean_app
           
-          # 5. यहां एकदम फ्रेश बिना किसी पुराने एरर वाला एंड्रॉइड सेटअप बनाएं
+          # 4. फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट जनरेट करें
           flutter create . --platforms=android --project-name=rent_manager_app
           
-          # 6. लेटेस्ट प्लगइन्स की डिमांड के मुताबिक compileSdk और targetSdk को जबरदस्ती 36 पर सेट करें
-          find android/app/ -name "build.gradle*" | while read -r gradle_file; do
-            sed -i 's/compileSdk = .*/compileSdk = 36/g' "$gradle_file"
-            sed -i 's/targetSdk = .*/targetSdk = 36/g' "$gradle_file"
-            sed -i 's/compileSdk(.*/compileSdk(36)/g' "$gradle_file"
-            sed -i 's/targetSdk(.*/targetSdk(36)/g' "$gradle_file"
-          done
+          # 5. [ब्रह्मास्त्र जुगाड़]: पूरे ग्रैडल को हुक्म दें कि वह सभी प्लगइन्स को जबरदस्ती SDK 36 पर बिल्ड करे
+          # यह तरीका हर तरह की .gradle और .gradle.kts फाइल पर काम करेगा
+          cat << 'EOF' >> android/build.gradle.kts
+          subprojects {
+              afterEvaluate {
+                  if (hasProperty("android")) {
+                      extensions.configure<com.android.build.gradle.BaseExtension> {
+                          compileSdkVersion(36)
+                          targetSdkVersion(36)
+                      }
+                  }
+              }
+          }
+          EOF
+
+          cat << 'EOF' >> android/build.gradle
+          subprojects {
+              afterEvaluate { project ->
+                  if (project.hasProperty('android')) {
+                      project.android {
+                          compileSdkVersion 36
+                          targetSdkVersion 36
+                      }
+                  }
+              }
+          }
+          EOF
           
-          # 7. डिपेंडेंसी लोड करें और बिना किसी रोक-टोक के ऐप बिल्ड करें
+          # 6. डिपेंडेंसी लोड करें और बिना किसी रोक-टोक के ऐप बिल्ड करें
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation --no-tree-shake-icons
           
-          # 8. बनी हुई बिल्कुल फ्रेश APK को गिटहब के बाहर आउटपुट फोल्डर में भेजें
+          # 7. बनी हुई बिल्कुल फ्रेश APK को बाहर निकालें
           mkdir -p $GITHUB_WORKSPACE/build_output
           cp build/app/outputs/flutter-apk/app-release.apk $GITHUB_WORKSPACE/build_output/app-release.apk
 
