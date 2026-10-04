@@ -45,23 +45,20 @@ jobs:
           # 4. फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट जनरेट करें
           flutter create . --platforms=android --project-name=rent_manager_app
           
-          # 5. [कोटलिन फिक्स ब्रह्मास्त्र]: कोटलिन वर्जन को जबरदस्ती 1.9.24 पर अपग्रेड करें
-          # यह कमांड सेटिंग फाइल्स में जाकर पुराना 1.4 वर्जन हटाकर नया वर्जन लिख देगी
-          find android/ -name "build.gradle*" | while read -r gradle_file; do
+          # 5. कोटलिन वर्जन को जबरदस्ती 1.9.24 पर अपग्रेड करें
+          find android/ or android.gradle.kts -name "build.gradle*" | while read -r gradle_file; do
             sed -i 's/org.jetbrains.kotlin.android" version "[^"]*"/org.jetbrains.kotlin.android" version "1.9.24"/g' "$gradle_file"
             sed -i 's/ext.kotlin_version = .*/ext.kotlin_version = "1.9.24"/g' "$gradle_file"
           done
           
-          # 6. ग्रैडल सब-प्रोजेक्ट्स को SDK 36 पर फ़ोर्स करें
+          # 6. ग्रैडल सब-प्रोजेक्ट्स को सीधे बिना afterEvaluate के SDK 36 पर फ़ोर्स करें
           cat << 'EOF' >> android/build.gradle.kts
           subprojects {
-              afterEvaluate {
-                  if (hasProperty("android")) {
-                      extensions.configure<com.android.build.gradle.BaseExtension> {
-                          compileSdkVersion(36)
-                          defaultConfig {
-                              targetSdkVersion(36)
-                          }
+              if (hasProperty("android")) {
+                  extensions.configure<com.android.build.gradle.BaseExtension> {
+                      compileSdkVersion(36)
+                      defaultConfig {
+                          targetSdkVersion(36)
                       }
                   }
               }
