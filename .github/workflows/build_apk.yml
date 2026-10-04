@@ -26,18 +26,20 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Nuke Android Folder, Maximize SDK & Rebuild Fresh
+      - name: Absolute Nuke All Duplicates & Fresh Rebuild
         run: |
-          # 1. असली फ्लटर प्रोजेक्ट फोल्डर का पता लगाएं
+          # 1. पूरे प्रोजेक्ट में जहां भी pubspec.yaml है, वहां खुद ही पहुंचें
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           cd "$FLUTTER_DIR"
+          echo "Working in clean directory: $(pwd)"
           
-          # 2. पुरानी सभी खराबियों को जड़ से मिटाएं (Nuke)
-          rm -rf android
-          rm -rf .gradle
-          rm -rf .dart_tool
+          # 2. पूरे प्रोजेक्ट में जहां भी पुराना या डुप्लीकेट android फोल्डर है, सबको चुन-चुन कर डिलीट करें
+          echo "Nuking all old android folders across the project..."
+          find . -type d -name "android" -exec rm -rf {} +
+          rm -rf .gradle .dart_tool
           
-          # 3. एकदम नया और फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट बनाएं
+          # 3. फ्लटर को कहें कि वह एकदम नया और फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट बनाए
+          echo "Creating brand new fresh android project layout..."
           flutter create . --platforms=android
           
           # 4. लेटेस्ट प्लगइन्स की डिमांड के मुताबिक compileSdk और targetSdk को सीधे 36 पर सेट करें
@@ -55,7 +57,7 @@ jobs:
           
           # 6. बनी हुई फ्रेश APK को बाहर डाउनलोड के लिए भेजें
           mkdir -p ../../build_output
-          cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk
+          cp build/app/outputs/flutter-apk/app-release.apk ../../build_output/app-release.apk || cp build/app/outputs/apk/release/app-release.apk ../../build_output/app-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
