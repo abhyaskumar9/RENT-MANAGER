@@ -12,8 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -28,52 +27,42 @@ jobs:
 
       - name: Create Clean Sandbox & Bypass KGP Build
         run: |
-          # 1. असली फ्लटर प्रोजेक्ट फोल्डर का पता लगाएं
-          ORIGINAL_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
-          echo "Original project found in: $ORIGINAL_DIR"
-          
-          # 2. सर्वर पर बिल्कुल नया और साफ फोल्डर तैयार करें
+          ORIGINAL_DIR=$(pwd)
           mkdir -p /home/runner/clean_app
-          
-          # 3. केवल मुख्य कोड कॉपी करें
-          cp -r $ORIGINAL_DIR/lib /home/runner/clean_app/
-          cp $ORIGINAL_DIR/pubspec.yaml /home/runner/clean_app/
-          if [ -d "$ORIGINAL_DIR/assets" ]; then cp -r $ORIGINAL_DIR/assets /home/runner/clean_app/; fi
-          
+          cp -r . /home/runner/clean_app/
           cd /home/runner/clean_app
-          
-          # 4. फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट जनरेट करें
-          flutter create . --platforms=android --project-name=rent_manager_app
-          
-          # 5. ग्रैडल को मजबूर करें कि वह पुराने KGP प्लगइन्स एरर को इग्नोर करे
-          cat << 'EOF' >> android/build.gradle.kts
-          subprojects {
-              afterEvaluate {
-                  if (hasProperty("android")) {
-                      extensions.configure<com.android.build.gradle.BaseExtension> {
-                          compileSdkVersion(36)
-                          defaultConfig {
-                              targetSdkVersion(36)
-                          }
-                      }
-                  }
+
+          # Clean android/build.gradle.kts without afterEvaluate
+          cat << 'EOF' > android/build.gradle.kts
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
               }
           }
+
+          val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
+          rootProject.layout.buildDirectory.value(newBuildDir)
+
+          subprojects {
+              val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
+              project.layout.buildDirectory.value(newSubprojectBuildDir)
+          }
+
+          tasks.register<Delete>("clean") {
+              delete(rootProject.layout.buildDirectory)
+          }
           EOF
-          
-          # 6. डिपेंडेंसी लोड करें
+
           flutter pub get
-          
-          # 7. [ब्रह्मास्त्र कमांड]: APK को डिबग मोड में बिना किसी वैलिडेशन के बनाएं (ताकि KGP एरर बाईपास हो जाए)
           flutter build apk --debug --android-skip-build-dependency-validation --no-tree-shake-icons
-          
-          # 8. बनी हुई APK को खोजकर बाहर सुरक्षित निकालें
-          mkdir -p $GITHUB_WORKSPACE/build_output
-          find . -name "*.apk" -exec cp {} $GITHUB_WORKSPACE/build_output/app-release.apk \;
-          echo "APK successfully found and relocated!"
+
+          mkdir -p $ORIGINAL_DIR/build_output
+          find . -name "*.apk" -exec cp {} $ORIGINAL_DIR/build_output/ \;
+          echo "APK successfully found and relocated"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rent-Manager-APK
-          path: build_output/app-release.apk
+          path: build_output/*.apk
