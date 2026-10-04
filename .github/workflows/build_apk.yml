@@ -45,15 +45,16 @@ jobs:
           # 4. फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट जनरेट करें
           flutter create . --platforms=android --project-name=rent_manager_app
           
-          # 5. [ब्रह्मास्त्र जुगाड़]: पूरे ग्रैडल को हुक्म दें कि वह सभी प्लगइन्स को जबरदस्ती SDK 36 पर बिल्ड करे
-          # यह तरीका हर तरह की .gradle और .gradle.kts फाइल पर काम करेगा
+          # 5. [स्पेलिंग सुधरा हुआ ब्रह्मास्त्र]: सभी प्लगइन्स को जबरदस्ती सही सिंटैक्स के साथ SDK 36 पर बिल्ड करें
           cat << 'EOF' >> android/build.gradle.kts
           subprojects {
               afterEvaluate {
                   if (hasProperty("android")) {
                       extensions.configure<com.android.build.gradle.BaseExtension> {
                           compileSdkVersion(36)
-                          targetSdkVersion(36)
+                          defaultConfig {
+                              targetSdkVersion(36)
+                          }
                       }
                   }
               }
@@ -66,7 +67,9 @@ jobs:
                   if (project.hasProperty('android')) {
                       project.android {
                           compileSdkVersion 36
-                          targetSdkVersion 36
+                          defaultConfig {
+                              targetSdkVersion 36
+                          }
                       }
                   }
               }
