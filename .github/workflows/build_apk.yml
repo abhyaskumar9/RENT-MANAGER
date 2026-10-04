@@ -32,8 +32,20 @@ jobs:
           cp -r . /home/runner/clean_app/
           cd /home/runner/clean_app
 
-          # Clean android/build.gradle.kts without afterEvaluate
-          cat << 'EOF' > android/build.gradle.kts
+          # Clean android/build.gradle in Groovy format
+          cat << 'EOF' > android/build.gradle
+          buildscript {
+              ext.kotlin_version = '1.8.22'
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:7.3.0'
+                  classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:\$kotlin_version"
+              }
+          }
+
           allprojects {
               repositories {
                   google()
@@ -41,16 +53,13 @@ jobs:
               }
           }
 
-          val newBuildDir: Directory = rootProject.layout.buildDirectory.dir("../../build").get()
-          rootProject.layout.buildDirectory.value(newBuildDir)
-
+          rootProject.buildDir = "../build"
           subprojects {
-              val newSubprojectBuildDir: Directory = newBuildDir.dir(project.name)
-              project.layout.buildDirectory.value(newSubprojectBuildDir)
+              project.buildDir = "${rootProject.buildDir}/${project.name}"
           }
 
-          tasks.register<Delete>("clean") {
-              delete(rootProject.layout.buildDirectory)
+          tasks.register("clean", Delete) {
+              delete rootProject.buildDir
           }
           EOF
 
