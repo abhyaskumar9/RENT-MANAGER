@@ -15,6 +15,13 @@ allprojects {
         google()
         mavenCentral()
     }
+    // Force Kotlin language version 1.8 globally across all modules and plugins
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            jvmTarget = '1.8'
+            languageVersion = '1.8'
+        }
+    }
 }
 
 rootProject.buildDir = "../build"
