@@ -45,7 +45,7 @@ jobs:
           # 4. फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट जनरेट करें
           flutter create . --platforms=android --project-name=rent_manager_app
           
-          # 5. [स्पेलिंग सुधरा हुआ ब्रह्मास्त्र]: सभी प्लगइन्स को जबरदस्ती सही सिंटैक्स के साथ SDK 36 पर बिल्ड करें
+          # 5. सभी प्लगइन्स को जबरदस्ती सही सिंटैक्स के साथ SDK 36 पर बिल्ड करें
           cat << 'EOF' >> android/build.gradle.kts
           subprojects {
               afterEvaluate {
@@ -80,9 +80,10 @@ jobs:
           flutter pub get
           flutter build apk --release --android-skip-build-dependency-validation --no-tree-shake-icons
           
-          # 7. बनी हुई बिल्कुल फ्रेश APK को बाहर निकालें
+          # 7. [संशोधित पाथ]: पूरे प्रोजेक्ट के अंदर जहां भी .apk बनी है, उसे खोजकर बाहर सुरक्षित निकालें
           mkdir -p $GITHUB_WORKSPACE/build_output
-          cp build/app/outputs/flutter-apk/app-release.apk $GITHUB_WORKSPACE/build_output/app-release.apk
+          find . -name "*.apk" -exec cp {} $GITHUB_WORKSPACE/build_output/app-release.apk \;
+          echo "APK successfully found and relocated!"
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
