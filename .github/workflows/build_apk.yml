@@ -28,6 +28,15 @@ jobs:
       - name: Get Dependencies
         run: flutter pub get
 
+      - name: Force Kotlin 1.8 Across All Project Modules
+        run: |
+          # Sabhi subprojects aur modules ke build.gradle files mein Kotlin 1.8 force kar rahe hain
+          find . -name "build.gradle" -o -name "build.gradle.kts" | while read file; do
+              echo "Injecting Kotlin 1.8 into $file"
+              echo "" >> "$file"
+              echo "allprojects { tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach { kotlinOptions { languageVersion = '1.8' } } }" >> "$file"
+          done
+
       - name: Build APK
         run: flutter build apk --debug --android-skip-build-dependency-validation --no-tree-shake-icons
 
