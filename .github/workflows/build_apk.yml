@@ -26,30 +26,27 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Nuke Android Folder, Upgrade SDK & Rebuild Fresh
+      - name: Nuke Android Folder, Maximize SDK & Rebuild Fresh
         run: |
           # 1. असली फ्लटर प्रोजेक्ट फोल्डर का पता लगाएं
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           cd "$FLUTTER_DIR"
           
-          # 2. पुरानी सभी खराबियों और डुप्लीकेट एंड्रॉइड फोल्डर को जड़ से मिटाएं (Nuke)
-          echo "Deleting old corrupted android configuration..."
+          # 2. पुरानी सभी खराबियों को जड़ से मिटाएं (Nuke)
           rm -rf android
           rm -rf .gradle
           rm -rf .dart_tool
           
-          # 3. फ्लटर को कहें कि वह एकदम नया और फ्रेश एंड्रॉइड फोल्डर खुद बनाए
-          echo "Creating brand new fresh android project layout..."
+          # 3. एकदम नया और फ्रेश एंड्रॉइड प्रोजेक्ट लेआउट बनाएं
           flutter create . --platforms=android
           
-          # 4. नए फाइल_पिकर प्लगइन के लिए डिफ़ॉल्ट compileSdk को जबरदस्ती 35 पर सेट करें (दोनों फॉर्मेट के लिए)
-          echo "Upgrading compileSdk and targetSdk to 35 for plugin compatibility..."
+          # 4. लेटेस्ट प्लगइन्स की डिमांड के मुताबिक compileSdk और targetSdk को सीधे 36 पर सेट करें
           find android/app/ -name "build.gradle*" | while read -r gradle_file; do
-            echo "Modifying file: $gradle_file"
-            sed -i 's/compileSdk = .*/compileSdk = 35/g' "$gradle_file"
-            sed -i 's/targetSdk = .*/targetSdk = 35/g' "$gradle_file"
-            sed -i 's/compileSdk(.*/compileSdk(35)/g' "$gradle_file"
-            sed -i 's/targetSdk(.*/targetSdk(35)/g' "$gradle_file"
+            echo "Upgrading SDK versions to 36 in: $gradle_file"
+            sed -i 's/compileSdk = .*/compileSdk = 36/g' "$gradle_file"
+            sed -i 's/targetSdk = .*/targetSdk = 36/g' "$gradle_file"
+            sed -i 's/compileSdk(.*/compileSdk(36)/g' "$gradle_file"
+            sed -i 's/targetSdk(.*/targetSdk(36)/g' "$gradle_file"
           done
           
           # 5. बिना किसी पुराने वैलिडेशन चेक के सीधे बिल्ड रन करें
