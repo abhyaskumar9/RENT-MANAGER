@@ -39,18 +39,14 @@ jobs:
           cd "$FLUTTER_DIR"
           yes | flutter doctor --android-licenses || true
 
-      - name: Build APK and Copy Output
+      - name: Build APK
         run: |
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           cd "$FLUTTER_DIR"
           flutter build apk --release --no-pub
-          
-          # APK ko safe folder mein copy kar rahe hain taaki artifact upload fail na ho
-          mkdir -p ../build_output
-          cp build/app/outputs/flutter-apk/app-release.apk ../build_output/app-release.apk
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rent Manager APK
-          path: build_output/app-release.apk
+          path: '**/outputs/flutter-apk/app-release.apk'
