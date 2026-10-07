@@ -1,41 +1,38 @@
-plugins {
-    id "com.android.application"
-    id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin"
+buildscript {
+    ext.kotlin_version = '1.8.22'
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.4.2'
+        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    }
 }
 
-android {
-    namespace "com.abhyaskumar9.rent_manager"
-    compileSdkVersion flutter.compileSdkVersion
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_1_8
-        targetCompatibility JavaVersion.VERSION_1_8
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
     }
+}
 
-    kotlinOptions {
-        jvmTarget = '1.8'
-        languageVersion = '1.8'
-    }
+rootProject.buildDir = '../build'
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
 
-    defaultConfig {
-        applicationId "com.abhyaskumar9.rent_manager"
-        minSdkVersion 21
-        targetSdkVersion flutter.targetSdkVersion
-        versionCode flutterVersionCode.toInteger()
-        versionName flutterVersionName
-    }
-
-    buildTypes {
-        release {
-            signingConfig signingConfigs.debug
+subprojects {
+    afterEvaluate { project ->
+        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+            kotlinOptions {
+                jvmTarget = '1.8'
+                languageVersion = '1.8'
+            }
         }
     }
 }
 
-flutter {
-    source '../..'
-}
-
-dependencies {
+tasks.register("clean", Delete) {
+    delete rootProject.buildDir
 }
