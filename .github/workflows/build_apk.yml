@@ -1,4 +1,4 @@
-name: Build Android APK (Rollback to Success)
+name: Build Android APK
 
 on:
   push:
@@ -14,14 +14,6 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 3
-
-      - name: Force Rollback to Last Successful Code
-        run: |
-          echo "Finding the last commit where the app built successfully..."
-          git reset --hard HEAD^ || git reset --hard HEAD~2 || git reset --hard HEAD~3
-          echo "Project successfully rolled back to a clean historical state!"
 
       - name: Set up Java
         uses: actions/setup-java@v3
