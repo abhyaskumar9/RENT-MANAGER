@@ -25,9 +25,14 @@ plugins {
 
 include(":app")
 
-subprojects {
-    afterEvaluate { project ->
-        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
+// Yeh block saare plugins aur modules (chahe kitne bhi purane ho) par forcefully Kotlin 1.8 lock kar dega
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    gradle.projectsEvaluated {
+        tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
             kotlinOptions {
                 jvmTarget = "1.8"
                 languageVersion = "1.8"
