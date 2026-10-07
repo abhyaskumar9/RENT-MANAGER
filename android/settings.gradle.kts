@@ -25,13 +25,13 @@ plugins {
 
 include(":app")
 
-// Yeh block gradle evaluation ke baad saare internal plugins aur subprojects ko forcefully 1.8 par lock kar dega
+// Yeh modern compilerOptions block sabhi internal plugins aur subprojects ko zabardasti Kotlin 1.8 par lock kar dega
 gradle.projectsEvaluated {
     allprojects {
         tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
-            kotlinOptions {
-                jvmTarget = "1.8"
-                languageVersion = "1.8"
+            compilerOptions {
+                languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
             }
         }
     }
