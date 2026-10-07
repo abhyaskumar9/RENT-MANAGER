@@ -22,13 +22,12 @@ subprojects {
     project.buildDir = "${rootProject.buildDir}/${project.name}"
 }
 
-subprojects {
-    afterEvaluate { project ->
-        project.tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
-            kotlinOptions {
-                jvmTarget = '1.8'
-                languageVersion = '1.8'
-            }
+// Yeh code sabhi plugins aur modules ke Kotlin version ko forcefully 1.8 par lock kar dega
+gradle.projectsEvaluated {
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile).configureEach {
+        kotlinOptions {
+            jvmTarget = '1.8'
+            languageVersion = '1.8'
         }
     }
 }
