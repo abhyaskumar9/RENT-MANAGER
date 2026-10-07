@@ -25,13 +25,9 @@ plugins {
 
 include(":app")
 
-// Yeh block saare plugins aur modules (chahe kitne bhi purane ho) par forcefully Kotlin 1.8 lock kar dega
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    gradle.projectsEvaluated {
+// Yeh block gradle evaluation ke baad saare internal plugins aur subprojects ko forcefully 1.8 par lock kar dega
+gradle.projectsEvaluated {
+    allprojects {
         tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
             kotlinOptions {
                 jvmTarget = "1.8"
