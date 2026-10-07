@@ -25,28 +25,22 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: Hard Clean Project
+      - name: Build APK (Without Error)
         run: |
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           cd "$FLUTTER_DIR"
           flutter clean
-          flutter pub cache clean --force
           flutter pub get
+          flutter build apk --release
 
-      - name: Accept Android Licences
+      - name: Find and Copy APK
         run: |
-          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
-          cd "$FLUTTER_DIR"
-          yes | flutter doctor --android-licenses || true
-
-      - name: Build APK
-        run: |
-          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
-          cd "$FLUTTER_DIR"
-          flutter build apk --release --no-pub
+          mkdir -p build_output
+          # Yeh line APK ko kahin se bhi dhoondh kar safe folder mein daal degi
+          find . -name "app-release.apk" -exec cp {} build_output/ \;
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rent Manager APK
-          path: '**/outputs/flutter-apk/app-release.apk'
+          path: build_output/*.apk
