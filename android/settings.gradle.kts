@@ -25,14 +25,12 @@ plugins {
 
 include(":app")
 
-// Yeh modern compilerOptions block sabhi internal plugins aur subprojects ko zabardasti Kotlin 1.8 par lock kar dega
-gradle.projectsEvaluated {
-    allprojects {
-        tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
-            compilerOptions {
-                languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
-                jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
-            }
+// Yeh gradle.beforeProject hook pub-cache ke har ek external ziddi plugin ko load hote hi 1.8 par lock kar dega
+gradle.beforeProject {
+    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
+        compilerOptions {
+            languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
         }
     }
 }
