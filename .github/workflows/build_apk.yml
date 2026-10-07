@@ -32,12 +32,6 @@ jobs:
           
           flutter clean
           flutter pub get
-          
-          # Yeh step pub-cache ke andar chhupe huye ziddi plugins ka Kotlin version forcefully 1.8 kar dega
-          echo "Patching pub-cache Kotlin versions..."
-          find ~/.pub-cache -name "build.gradle" -exec sed -i 's/1.4/1.8/g' {} + || true
-          find ~/.pub-cache -name "*.gradle" -exec sed -i 's/kotlinVersion = "1.4"/kotlinVersion = "1.8"/g' {} + || true
-          
           flutter build apk --release --android-skip-build-dependency-validation
           
           mkdir -p ../build_output
