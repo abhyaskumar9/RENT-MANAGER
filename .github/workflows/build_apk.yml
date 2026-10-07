@@ -20,27 +20,32 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Flutter
+      - name: Set up Flutter (Fixed Version)
         uses: subosito/flutter-action@v2
         with:
+          flutter-version: '3.19.5' # Hum ek fixed stable version use kar rahe hain
           channel: 'stable'
 
-      - name: Build APK (Without Error)
+      - name: THE NEW TRICK - Delete Lock & Force Fresh Fetch
         run: |
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           cd "$FLUTTER_DIR"
+          
+          echo "Deleting old pubspec.lock to force fresh, modern plugins..."
+          rm -f pubspec.lock
+          
           flutter clean
+          flutter pub cache clean --force
           flutter pub get
-          flutter build apk --release
 
-      - name: Find and Copy APK
+      - name: Build APK
         run: |
-          mkdir -p build_output
-          # Yeh line APK ko kahin se bhi dhoondh kar safe folder mein daal degi
-          find . -name "app-release.apk" -exec cp {} build_output/ \;
+          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
+          cd "$FLUTTER_DIR"
+          flutter build apk --release
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rent Manager APK
-          path: build_output/*.apk
+          path: '**/outputs/flutter-apk/app-release.apk'
