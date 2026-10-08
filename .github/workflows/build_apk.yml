@@ -18,24 +18,29 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '17' # Gradle 8+ ke liye Java 17 zaroori hai, jo hum de rahe hain
 
-      - name: Set up Flutter (Latest Fresh SDK)
+      - name: Set up Flutter (Latest Stable)
         uses: subosito/flutter-action@v2
         with:
-          flutter-version: '3.24.3' # Yeh version internal :gradle error ko fix karta hai
-          cache: false # Purani corrupted cache ko block karne ke liye
+          flutter-version: '3.24.3'
+          cache: false
 
-      - name: Patch Local Kotlin Versions
+      - name: Auto-Upgrade Gradle for SDK 35
         run: |
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           cd "$FLUTTER_DIR"
           
-          # Aapki files mein purane version ko automatically 1.9.24 par set karne ke liye
-          echo "Upgrading project Kotlin version to match modern Flutter..."
-          sed -i 's/1.8.22/1.9.24/g' android/settings.gradle.kts || true
-          sed -i 's/1.7.10/1.9.24/g' android/settings.gradle.kts || true
-          sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '1.9.24'/g" android/build.gradle || true
+          echo "Upgrading Gradle Wrapper to 8.3..."
+          sed -i 's/^distributionUrl=.*/distributionUrl=https\:\/\/services.gradle.org\/distributions\/gradle-8.3-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+          
+          echo "Upgrading Android Gradle Plugin to 8.1.0..."
+          if [ -f "android/settings.gradle.kts" ]; then
+            sed -i 's/version "7.3.0"/version "8.1.0"/g' android/settings.gradle.kts
+          fi
+          if [ -f "android/build.gradle" ]; then
+            sed -i "s/gradle:7.4.2/gradle:8.1.0/g" android/build.gradle
+          fi
 
       - name: Build Release APK
         run: |
