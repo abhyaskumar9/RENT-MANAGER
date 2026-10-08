@@ -1,14 +1,14 @@
 pluginManagement {
-    val flutterSdkPath = run {
-        val properties = java.util.Properties()
-        val flutterPropertiesFile = settingsDir.resolve("local.properties")
-        if (flutterPropertiesFile.exists()) {
-            flutterPropertiesFile.inputStream().use { properties.load(it) }
-        }
-        properties.getProperty("flutter.sdk") ?: throw java.io.FileNotFoundException("flutter.sdk not set in local.properties")
+    def flutterSdkPath = {
+        def properties = new Properties()
+        file("local.properties").withInputStream { properties.load(it) }
+        def flutterSdkPath = properties.getProperty("flutter.sdk")
+        assert flutterSdkPath != null, "flutter.sdk not set in local.properties"
+        return flutterSdkPath
     }
+    settings.ext.flutterSdkPath = flutterSdkPath()
 
-    includeBuild("$flutterSdkPath/packages/flutter_tools/gradle")
+    includeBuild("${settings.ext.flutterSdkPath}/packages/flutter_tools/gradle")
 
     repositories {
         google()
@@ -18,19 +18,10 @@ pluginManagement {
 }
 
 plugins {
-    id("dev.flutter.flutter-gradle-plugin") version "1.0.0" apply false
-    id("com.android.application") version "7.4.2" apply false
-    id("org.jetbrains.kotlin.android") version "1.8.22" apply false
+    id "dev.flutter.flutter-plugin-loader" version "1.0.0"
+    id "com.android.application" version "7.3.0" apply false
+    // Yahan humne Kotlin ko permanently 1.8.22 par set kar diya hai
+    id "org.jetbrains.kotlin.android" version "1.8.22" apply false
 }
 
-include(":app")
-
-// Yeh gradle.beforeProject hook pub-cache ke har ek external ziddi plugin ko load hote hi 1.8 par lock kar dega
-gradle.beforeProject {
-    tasks.withType(org.jetbrains.kotlin.gradle.tasks.KotlinCompile::class.java).configureEach {
-        compilerOptions {
-            languageVersion.set(org.jetbrains.kotlin.gradle.dsl.KotlinVersion.KOTLIN_1_8)
-            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
-        }
-    }
-}
+include ":app"
