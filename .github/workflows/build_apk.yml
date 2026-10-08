@@ -20,10 +20,22 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Set up Flutter
+      - name: Set up Flutter (Latest Fresh SDK)
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          flutter-version: '3.24.3' # Yeh version internal :gradle error ko fix karta hai
+          cache: false # Purani corrupted cache ko block karne ke liye
+
+      - name: Patch Local Kotlin Versions
+        run: |
+          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
+          cd "$FLUTTER_DIR"
+          
+          # Aapki files mein purane version ko automatically 1.9.24 par set karne ke liye
+          echo "Upgrading project Kotlin version to match modern Flutter..."
+          sed -i 's/1.8.22/1.9.24/g' android/settings.gradle.kts || true
+          sed -i 's/1.7.10/1.9.24/g' android/settings.gradle.kts || true
+          sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '1.9.24'/g" android/build.gradle || true
 
       - name: Build Release APK
         run: |
