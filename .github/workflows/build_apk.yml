@@ -26,6 +26,22 @@ jobs:
           flutter-version: '3.24.3'
           cache: false
 
+      - name: Auto-Upgrade Gradle for SDK 35
+        run: |
+          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
+          cd "$FLUTTER_DIR"
+          
+          echo "Upgrading Gradle Wrapper to 8.3..."
+          sed -i 's/^distributionUrl=.*/distributionUrl=https\:\/\/services.gradle.org\/distributions\/gradle-8.3-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
+          
+          echo "Upgrading Android Gradle Plugin to 8.1.0..."
+          if [ -f "android/settings.gradle.kts" ]; then
+            sed -i 's/version "7.3.0"/version "8.1.0"/g' android/settings.gradle.kts
+          fi
+          if [ -f "android/build.gradle" ]; then
+            sed -i "s/gradle:7.4.2/gradle:8.1.0/g" android/build.gradle
+          fi
+
       - name: Build Debug APK
         run: |
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
