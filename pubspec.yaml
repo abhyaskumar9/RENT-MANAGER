@@ -1,21 +1,23 @@
 name: rent_manager
-description: "A new Flutter project."
+description: Rent Manager Pro Application
 publish_to: 'none'
 version: 1.0.0+1
 
 environment:
-  sdk: ">=3.0.0 <4.0.0"
+  sdk: '>=3.0.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
-  cupertino_icons: ^1.0.6
-  file_picker: ^6.1.2
+  cupertino_icons: ^1.0.8
+  
+  # Stable Plugins (Inse app crash nahi hogi)
+  shared_preferences: ^2.3.2
+  url_launcher: ^6.3.0
+  file_picker: ^6.1.1
   share_plus: ^7.2.2
-  shared_preferences: ^2.2.2
-  url_launcher: ^6.2.2
   image_picker: ^1.0.4
-  path_provider: ^2.1.1
+  path_provider: ^2.1.2
 
 dev_dependencies:
   flutter_test:
