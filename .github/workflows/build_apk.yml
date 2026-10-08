@@ -25,39 +25,16 @@ jobs:
         with:
           channel: 'stable'
 
-      - name: HACK THE CLOUD - Direct Pub Cache Patch
-        run: |
-          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
-          cd "$FLUTTER_DIR"
-          
-          # 1. Pehle saare packages download karwao
-          flutter pub get
-          
-          echo "Hunting down Kotlin 1.4 in downloaded plugins..."
-          # 2. Cloud cache ke andar ghus kar har jagah se 1.4 ko mita kar 1.8 force kar do
-          find ~/.pub-cache -name "build.gradle" -type f -exec sed -i 's/languageVersion.*/languageVersion = "1.8"/g' {} +
-          find ~/.pub-cache -name "build.gradle" -type f -exec sed -i 's/apiVersion.*/apiVersion = "1.8"/g' {} +
-          find ~/.pub-cache -name "build.gradle" -type f -exec sed -i 's/jvmTarget.*/jvmTarget = "1.8"/g' {} +
-          
-          # 3. Aapke local root project mein bhi zabardasti 1.8.22 dal do
-          if [ -f "android/build.gradle" ]; then
-            sed -i "s/ext.kotlin_version = .*/ext.kotlin_version = '1.8.22'/g" android/build.gradle
-          fi
-
       - name: Build Release APK
         run: |
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           cd "$FLUTTER_DIR"
+          flutter clean
+          flutter pub get
           flutter build apk --release
 
-      - name: Find and Export APK
-        run: |
-          # APK ko dhoondh kar ek safe folder mein nikal lo taaki error na aaye
-          mkdir -p final_apk_output
-          find . -name "app-release.apk" -exec cp {} final_apk_output/ \;
-          
-      - name: Upload Artifact
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: Rent Manager APK
-          path: final_apk_output/*.apk
+          path: '**/outputs/flutter-apk/app-release.apk'
