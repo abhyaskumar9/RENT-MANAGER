@@ -18,40 +18,24 @@ jobs:
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
-          java-version: '17' # Gradle 8+ ke liye Java 17 zaroori hai, jo hum de rahe hain
+          java-version: '17'
 
-      - name: Set up Flutter (Latest Stable)
+      - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.24.3'
           cache: false
 
-      - name: Auto-Upgrade Gradle for SDK 35
-        run: |
-          FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
-          cd "$FLUTTER_DIR"
-          
-          echo "Upgrading Gradle Wrapper to 8.3..."
-          sed -i 's/^distributionUrl=.*/distributionUrl=https\:\/\/services.gradle.org\/distributions\/gradle-8.3-all.zip/g' android/gradle/wrapper/gradle-wrapper.properties
-          
-          echo "Upgrading Android Gradle Plugin to 8.1.0..."
-          if [ -f "android/settings.gradle.kts" ]; then
-            sed -i 's/version "7.3.0"/version "8.1.0"/g' android/settings.gradle.kts
-          fi
-          if [ -f "android/build.gradle" ]; then
-            sed -i "s/gradle:7.4.2/gradle:8.1.0/g" android/build.gradle
-          fi
-
-      - name: Build Release APK
+      - name: Build Debug APK
         run: |
           FLUTTER_DIR=$(find . -name "pubspec.yaml" -exec dirname {} \;)
           cd "$FLUTTER_DIR"
           flutter clean
           flutter pub get
-          flutter build apk --release
+          flutter build apk --debug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Rent Manager APK
-          path: '**/outputs/flutter-apk/app-release.apk'
+          name: RentManager-Debug-APK
+          path: '**/outputs/flutter-apk/app-debug.apk'
